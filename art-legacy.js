@@ -1,5 +1,5 @@
 const clamp = (n, min = 0, max = 1) => Math.max(min, Math.min(max, n));
-export const PALETTE = { rain: [113,208,241], wind: [189,218,120], flood: [161,130,187], sun: [251,243,152] };
+export const PALETTE = { rain: [113,208,241], wind: [189,218,120], flood: [128,80,168], sun: [251,243,152] };
 const DITHER = [0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21];
 export function seeded(seed) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
