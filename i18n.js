@@ -1,6 +1,6 @@
 const english = {
   '气象印迹':'Weather Impressions','生成设置':'Studio settings','模型':'Model','导入 .3dm':'Import .3dm',
-  '双塔 / 内置示例':'Twin towers / Demo','恢复内置示例':'Restore demo model','视图':'Projection',
+  '双塔 / 内置示例':'Twin towers / Demo','恢复默认模型':'Restore default model','视图':'Projection',
   '投影方式':'Projection mode','可见表面':'Surface','多层叠印':'Overprint','生成风格':'Style','点阵 / Dots':'Dots',
   '点阵密度':'Dot density','明暗对比':'Tonal contrast','叠印层数':'Depth layers','气象':'Weather','义乌 · 浙江':'Yiwu, Zhejiang',
   '气象时间范围':'Weather period','90天':'90 days','1年':'1 year','3年':'3 years','自定':'Custom','开始':'From','结束':'To',

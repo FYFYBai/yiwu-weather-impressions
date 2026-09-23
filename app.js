@@ -113,6 +113,31 @@ async function loadFile(file) {
   finally { loadingModel = false; $('upload').disabled = false; $('demo').disabled = false; $('file').value = ''; busyState(false); }
 }
 
+
+let bundledDefaultFile;
+async function restoreDefaultModel() {
+  if (busy || loadingModel) return false;
+  loadingModel = true;
+  $('upload').disabled = true; $('demo').disabled = true; busyState(false);
+  setText('model-status','READING .3DM…');
+  try {
+    if (!bundledDefaultFile) {
+      const response = await fetch(new URL('./models/massing-model-v2.3dm', import.meta.url), {signal:AbortSignal.timeout(20000)});
+      if (!response.ok) throw new Error('Default model download failed: ' + response.status);
+      bundledDefaultFile = new File([await response.arrayBuffer()], 'Massing Model v2 (1).3dm');
+    }
+    loadingModel = false;
+    await loadFile(bundledDefaultFile);
+    return true;
+  } catch (error) {
+    setText('model-status','导入失败 · 保留原模型'); toast(error.message);
+    return false;
+  } finally {
+    loadingModel = false;
+    $('upload').disabled = false; $('demo').disabled = false; busyState(false);
+  }
+}
+
 async function download(type) {
   if (!plate || busy) return;
   const exportPlate = plate;
@@ -146,7 +171,7 @@ try {
   updateInfo(viewport.info());
   $('upload').onclick = () => $('file').click();
   $('file').onchange = () => loadFile($('file').files[0]);
-  $('demo').onclick = () => { if (busy || loadingModel) return; updateInfo(viewport.demo()); setText('model-name','双塔 / 内置示例'); setText('model-status','DEMO GEOMETRY / Z-UP'); dirty(); };
+  $('demo').onclick = async () => { if (await restoreDefaultModel()) await run(); };
   $('model-stage').ondragover = e => { e.preventDefault(); };
   $('model-stage').ondrop = e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); };
   $('front').onclick = () => viewport.fit('front'); $('iso').onclick = () => viewport.fit('iso'); $('fit').onclick = () => viewport.fit();
@@ -164,5 +189,5 @@ try {
   $('refresh-weather').onclick=()=>fetchWeather(true);
   $('run').onclick=()=>run(); $('png').onclick=()=>download('png'); $('jpeg').onclick=()=>download('jpeg');
   new ResizeObserver(drawWeather).observe($('weather-chart'));
-  icons(); registerTools(); await run({initial:true}); fetchWeather();
+  icons(); registerTools(); await restoreDefaultModel(); await run({initial:true}); fetchWeather();
 } catch(error) { setText('model-status','无法初始化三维视图'); toast(t('需要支持 WebGL 的浏览器。') + error.message); $('run').disabled=true; }

@@ -1,6 +1,6 @@
 # YIWU / Weather Impressions
 
-Standalone publication of the local /2 edition. Import a Rhino .3dm, choose a view, and generate a weather-colored dotted print. PNG and JPEG export are available.
+Standalone publication of the local /2 edition. The bundled default is Massing Model v2 (1).3dm. Import another Rhino .3dm, choose a view, and generate a weather-colored dotted print. PNG and JPEG export are available. The reset button restores the bundled massing model.
 
 The portrait renderer from the local root page is not included in this repository. All application assets use relative paths so the site works under a GitHub Pages project URL.
 
