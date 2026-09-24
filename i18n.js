@@ -27,6 +27,7 @@ const english = {
   '当前视角没有可见模型，请点击适配模型后重试。':'No model is visible. Fit the model and try again.',
   '待重新生成':'Changes pending','无气象色彩':'No weather color',
   '气象数据尚未就绪，已生成黑白点阵。读取完成后再 Run 可上色。':'Weather is not ready. A monochrome print was generated; run again after the data loads.',
+  '气象数据尚未就绪，已生成基础点阵。读取完成后再 Run 可添加纹样。':'Weather is not ready. Base dots were generated; run again after the data loads to add patterns.',
   '存档快照':'Archive snapshot','真实历史数据':'Historical data','部分缺测':'Partial coverage',
   '读取超时 · 点击重试':'Timed out · retry','数据不可用 · 点击重试':'Data unavailable · retry',
   '网络不可用，未使用模拟天气。':'Network unavailable. No simulated weather is used.',

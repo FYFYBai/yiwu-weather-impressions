@@ -12,9 +12,10 @@ if (legacy) {
 }
 let viewport, weather = null, plate = null, mode = 'surface', edition = 0, busy = false, loadingModel = false;
 let requested = rangeFor(365), weatherAbort, toastTimer, weatherSequence = 0, revision = 0;
+const patternControls = legacy ? (await import('./pattern-controls.js')).createPatternControls({ onChange:dirty }) : null;
 function toast(message) { setText('toast',message); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
 function icons() { window.lucide?.createIcons(); }
-function settings() { return { mode, density: +$('density').value, contrast: +$('contrast').value / 100, intensity: +$('intensity').value / 100,
+function settings() { return { ...patternControls?.getSettings(), mode, density: +$('density').value, contrast: +$('contrast').value / 100, intensity: +$('intensity').value / 100,
   channels: Object.fromEntries([...document.querySelectorAll('[data-channel]')].map(input => [input.dataset.channel,input.checked])) }; }
 function dirty() { revision++; if (plate && !busy) { $('run-state').textContent = 'CHANGED'; setText('print-tag',() => `YIWU / ${String(edition).padStart(3,'0')} · ${t('待重新生成')}`); } }
 function updateInfo(info) { $('geometry-info').textContent = `${info.meshes.toLocaleString()} meshes / ${info.triangles.toLocaleString()} faces`; }
@@ -38,11 +39,11 @@ async function run({ initial = false } = {}) {
     const printEdition = edition, hasWeather = !!weather;
     setText('print-tag',() => `YIWU / ${String(printEdition).padStart(3,'0')}${hasWeather ? '' : ' · '+t('无气象色彩')}`);
     $('run-state').textContent = 'READY';
-    $('print-mode').textContent = mode === 'surface' ? 'SURFACE / DOTS' : `DEPTH × ${$('layers').value} / DOTS`;
+    $('print-mode').textContent = mode === 'surface' ? (legacy ? 'SURFACE / WEAVE' : 'SURFACE / DOTS') : `DEPTH × ${$('layers').value} / ${legacy ? 'WEAVE' : 'DOTS'}`;
     $('print-info').textContent = `${$('artwork').width} × ${$('artwork').height} PX`;
     $('print-tag').title = plate.weatherRange || t('无气象数据');
     if (revision !== capturedRevision) $('run-state').textContent = 'CHANGED';
-    if (!initial && !weather) toast('气象数据尚未就绪，已生成黑白点阵。读取完成后再 Run 可上色。');
+    if (!initial && !weather) toast(legacy ? '气象数据尚未就绪，已生成基础点阵。读取完成后再 Run 可添加纹样。' : '气象数据尚未就绪，已生成黑白点阵。读取完成后再 Run 可上色。');
     return { ok:true, edition, seed:plate.seed, dots:plate.dots.length };
   } catch (error) { toast(error.message); $('run-state').textContent = 'ERROR'; return {ok:false,error:error.message}; }
   finally { busyState(false); }

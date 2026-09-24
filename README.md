@@ -4,7 +4,7 @@ Standalone publication of the local /2 edition. The bundled default is Massing M
 
 The portrait renderer from the local root page is not included in this repository. All application assets use relative paths so the site works under a GitHub Pages project URL.
 
-Three.js 0.180.0, rhino3dm 8.32.1 and Lucide 0.468.0 are bundled locally. Models are processed in the browser. Weather uses Open-Meteo historical reanalysis, with an explicitly labeled bundled real-data fallback. The purple waterlogging indicator is a rainfall-derived artistic proxy, not observed flooding.
+Three.js 0.180.0, rhino3dm 8.32.1 and Lucide 0.468.0 are bundled locally. Models are processed in the browser. Weather uses Open-Meteo historical reanalysis, with an explicitly labeled bundled real-data fallback. The waterlogging indicator is a rainfall-derived artistic proxy, not observed flooding. Rain, wind, waterlogging and sunshine have configurable woven marks, colors and nine numeric controls each.
 
 Weather attribution: [Open-Meteo](https://open-meteo.com/en/docs/historical-weather-api), CC BY 4.0. The free API is for non-commercial use.
 

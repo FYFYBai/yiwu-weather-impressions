@@ -8,7 +8,7 @@
   <meta name="description" content="义乌气象与三维建筑的点阵印象实验。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23191919' d='M0 0h32v32H0z'/%3E%3Ccircle cx='10' cy='10' r='4' fill='%2371d0f1'/%3E%3Ccircle cx='22' cy='10' r='4' fill='%23fbf398'/%3E%3Ccircle cx='10' cy='22' r='4' fill='%23BDDA78'/%3E%3Ccircle cx='22' cy='22' r='4' fill='%23a182bb'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./style.css">
-  <style>:root { --flood: #8050a8; }</style>
+  <link rel="stylesheet" href="./patterns.css">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
   <script src="./vendor/lucide.min.js" defer></script>
   <script src="./app.js" type="module"></script>
@@ -54,6 +54,7 @@
         <label class="range-label" for="intensity">色彩强度<output id="intensity-value">95%</output></label>
         <input id="intensity" type="range" min="0" max="100" value="95">
       </section>
+      <section id="pattern-controls"></section>
       </div>
       <div class="run-area"><button id="run" class="run"><span>RUN</span><i data-lucide="arrow-up-right"></i></button><div class="run-meta mono"><span id="seed-label">EDITION / 0000</span><span id="run-state">READY</span></div></div>
       <footer class="sidebar-footer"><a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noreferrer">DATA / OPEN-METEO <i data-lucide="arrow-up-right"></i></a><span>积水潜势为降雨衍生指标，非洪水实测。</span></footer>
