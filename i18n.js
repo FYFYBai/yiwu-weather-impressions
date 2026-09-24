@@ -1,6 +1,6 @@
 const english = {
   '气象印迹':'Weather Impressions','生成设置':'Studio settings','模型':'Model','导入 .3dm':'Import .3dm',
-  '双塔 / 内置示例':'Twin towers / Demo','恢复默认模型':'Restore default model','视图':'Projection',
+  '双塔 / 内置示例':'Twin towers / Demo','恢复内置示例':'Restore demo model','视图':'Projection',
   '投影方式':'Projection mode','可见表面':'Surface','多层叠印':'Overprint','生成风格':'Style','点阵 / Dots':'Dots',
   '点阵密度':'Dot density','明暗对比':'Tonal contrast','叠印层数':'Depth layers','气象':'Weather','义乌 · 浙江':'Yiwu, Zhejiang',
   '气象时间范围':'Weather period','90天':'90 days','1年':'1 year','3年':'3 years','自定':'Custom','开始':'From','结束':'To',
@@ -28,6 +28,8 @@ const english = {
   '待重新生成':'Changes pending','无气象色彩':'No weather color',
   '气象数据尚未就绪，已生成黑白点阵。读取完成后再 Run 可上色。':'Weather is not ready. A monochrome print was generated; run again after the data loads.',
   '气象数据尚未就绪，已生成基础点阵。读取完成后再 Run 可添加纹样。':'Weather is not ready. Base dots were generated; run again after the data loads to add patterns.',
+  '恢复默认模型':'Restore default model',
+  '再分析 · 雨天≥1mm；其余日期日照≥60%为晴天，否则为阴天（推算）':'reanalysis · Rain ≥1 mm; remaining days: sunshine ≥60% = sunny, otherwise cloudy (derived)',
   '存档快照':'Archive snapshot','真实历史数据':'Historical data','部分缺测':'Partial coverage',
   '读取超时 · 点击重试':'Timed out · retry','数据不可用 · 点击重试':'Data unavailable · retry',
   '网络不可用，未使用模拟天气。':'Network unavailable. No simulated weather is used.',

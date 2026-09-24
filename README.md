@@ -1,10 +1,12 @@
-# YIWU / Weather Impressions
+# YIWU / Weather Maps
 
-Standalone publication of the local /2 edition. The bundled default is Massing Model v2 (1).3dm. Import another Rhino .3dm, choose a view, and generate a weather-colored dotted print. PNG and JPEG export are available. The reset button restores the bundled massing model.
+Color Map is the home page; /2/ remains an alias. Transparency Map at /transparency/ uses rainfall and sunshine-derived sky proportions to create variable-size, variable-opacity dots. Reflectivity Map at /reflectivity/ is reserved and intentionally blank.
 
-The portrait renderer from the local root page is not included in this repository. All application assets use relative paths so the site works under a GitHub Pages project URL.
+The bundled default is Massing Model v2 (1).3dm. Import another Rhino model, choose a view and generate. PNG and JPEG export are available; reset restores the bundled model. All assets are relative to the GitHub Pages project root.
 
-Three.js 0.180.0, rhino3dm 8.32.1 and Lucide 0.468.0 are bundled locally. Models are processed in the browser. Weather uses Open-Meteo historical reanalysis, with an explicitly labeled bundled real-data fallback. The waterlogging indicator is a rainfall-derived artistic proxy, not observed flooding. Rain, wind, waterlogging and sunshine have configurable woven marks, colors and nine numeric controls each.
+Rainy days have at least 1 mm precipitation. Of the remaining days, sunshine fraction at least 60% is sunny; the rest is classified as cloudy (a sunshine-derived classification, not observed cloud cover). Missing days are excluded. Color Map waterlogging is a rainfall-derived proxy, not observed flooding.
+
+Three.js 0.180.0, rhino3dm 8.32.1 and Lucide 0.468.0 are bundled locally. Models are processed in the browser. Weather uses Open-Meteo reanalysis with an explicitly labeled real-data archive fallback.
 
 Weather attribution: [Open-Meteo](https://open-meteo.com/en/docs/historical-weather-api), CC BY 4.0. The free API is for non-commercial use.
 

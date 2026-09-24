@@ -2,8 +2,8 @@ import { ModelViewport } from './geometry.js';
 import { getWeather, rangeFor, latestDate } from './weather.js';
 import { t, setText, initializeLanguage } from './i18n.js';
 
-const legacy = true;
-const { makePlate, drawPlate } = await import('./art-legacy.js');
+const legacy = document.body.dataset.map !== 'transparency';
+const { makePlate, drawPlate, skyRatios } = await import(legacy ? './art-legacy.js' : './art-transparency.js');
 const $ = id => document.getElementById(id);
 initializeLanguage();
 if (legacy) {
@@ -15,9 +15,14 @@ let requested = rangeFor(365), weatherAbort, toastTimer, weatherSequence = 0, re
 const patternControls = legacy ? (await import('./pattern-controls.js')).createPatternControls({ onChange:dirty }) : null;
 function toast(message) { setText('toast',message); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
 function icons() { window.lucide?.createIcons(); }
-function settings() { return { ...patternControls?.getSettings(), mode, density: +$('density').value, contrast: +$('contrast').value / 100, intensity: +$('intensity').value / 100,
+function settings() { return { ...patternControls?.getSettings(), transparency: legacy ? undefined : { color:$('transparency-color').value, scale:+$('transparency-scale').value, variation:+$('transparency-variation').value }, mode, density: +$('density').value, contrast: +$('contrast').value / 100, intensity: +$('intensity').value / 100,
   channels: Object.fromEntries([...document.querySelectorAll('[data-channel]')].map(input => [input.dataset.channel,input.checked])) }; }
 function dirty() { revision++; if (plate && !busy) { $('run-state').textContent = 'CHANGED'; setText('print-tag',() => `YIWU / ${String(edition).padStart(3,'0')} · ${t('待重新生成')}`); } }
+function mapLabels() {
+  const labels={ 'transparency-settings':['Mark settings','点阵设置'], 'mark-color':['Mark color','点阵颜色'], 'mark-scale':['Dot size','点的大小'], 'mark-variation':['Tonal variation','层次变化'], rainy:['Rainy','雨天'],cloudy:['Cloudy (derived)','阴天（推算）'],sunny:['Sunny','晴天'] };
+  document.querySelectorAll('[data-map-label]').forEach(el=>{el.textContent=labels[el.dataset.mapLabel][document.documentElement.lang.startsWith('zh')?1:0];});
+}
+mapLabels();document.addEventListener('studio-language-change',mapLabels);
 function updateInfo(info) { $('geometry-info').textContent = `${info.meshes.toLocaleString()} meshes / ${info.triangles.toLocaleString()} faces`; }
 function busyState(value) {
   busy = value; $('run').disabled = value || loadingModel; $('png').disabled = value || !plate; $('jpeg').disabled = value || !plate;
@@ -43,7 +48,7 @@ async function run({ initial = false } = {}) {
     $('print-info').textContent = `${$('artwork').width} × ${$('artwork').height} PX`;
     $('print-tag').title = plate.weatherRange || t('无气象数据');
     if (revision !== capturedRevision) $('run-state').textContent = 'CHANGED';
-    if (!initial && !weather) toast(legacy ? '气象数据尚未就绪，已生成基础点阵。读取完成后再 Run 可添加纹样。' : '气象数据尚未就绪，已生成黑白点阵。读取完成后再 Run 可上色。');
+    if (!initial && !weather) toast('气象数据尚未就绪，已生成基础点阵。读取完成后再 Run 可添加纹样。');
     return { ok:true, edition, seed:plate.seed, dots:plate.dots.length };
   } catch (error) { toast(error.message); $('run-state').textContent = 'ERROR'; return {ok:false,error:error.message}; }
   finally { busyState(false); }
@@ -61,6 +66,12 @@ function drawWeather() {
   ctx.fillStyle = '#bec2b8'; for(let i=0;i<13;i++) ctx.fillRect(i/12*canvas.width,94,1,6);
 }
 function showWeather() {
+  if (!legacy) {
+    const ratios=skyRatios(weather);
+    const percentages=ratios?[ratios.rainy,ratios.cloudy,ratios.sunny].map(v=>Math.floor(v*100)):null;
+    if(ratios){const rank=['rainy','cloudy','sunny'].map((key,i)=>({i,f:ratios[key]*100-percentages[i]})).sort((a,b)=>b.f-a.f);const remainder=100-percentages.reduce((a,b)=>a+b,0);for(let i=0;i<remainder;i++)percentages[rank[i].i]++;}
+    ['rainy','cloudy','sunny'].forEach((key,i)=>{$(key+'-ratio').textContent=ratios?`${percentages[i]}%`:'—';$(key+'-ratio').title=ratios?`${ratios.counts[key]} / ${ratios.total} days`:'';});
+  }
   $('rain-stat').textContent = weather.total.toLocaleString('en-US',{maximumFractionDigits:0});
   $('wind-stat').textContent = weather.wind.toFixed(1);
   $('flood-stat').textContent = Math.round(weather.flood * 100);
@@ -69,7 +80,7 @@ function showWeather() {
   const w = weather;
   setText('weather-status',() => `${t(w.source === 'snapshot' ? '存档快照' : '真实历史数据')} · ${w.days.length} ${t('天')}${w.coverage < 1 ? ' · '+t('部分缺测') : ''}`);
   $('weather-status').parentElement.classList.remove('error');
-  setText('data-description',() => `Open-Meteo / ${w.model} ${t('再分析 · 日照占比定义晴天 · 积水潜势为7日降雨推算')}`);
+  setText('data-description',() => `Open-Meteo / ${w.model} ${t(legacy ? '再分析 · 日照占比定义晴天 · 积水潜势为7日降雨推算' : '再分析 · 雨天≥1mm；其余日期日照≥60%为晴天，否则为阴天（推算）')}`);
   setText('data-age',() => w.source === 'snapshot' ? `${t('快照读取于')} ${w.fetchedAt?.slice(0,10) || '—'}` : t('历史窗口截至5天前'));
   drawWeather();
 }
@@ -81,6 +92,7 @@ async function fetchWeather(refresh = false) {
   setText('weather-status','正在读取历史气象…');
   $('weather-status').parentElement.classList.remove('error');
   ['rain-stat','wind-stat','flood-stat','sun-stat'].forEach(id => $(id).textContent = '—');
+  if(!legacy)['rainy','cloudy','sunny'].forEach(key=>{$(key+'-ratio').textContent='—';$(key+'-ratio').title='';});
   $('date-label').textContent = `${requested.start} — ${requested.end}`;
   dirty(); drawWeather();
   const timeout = setTimeout(() => controller.abort(new Error('读取超时，请重试。')),25000);
@@ -99,7 +111,7 @@ async function fetchWeather(refresh = false) {
 }
 
 async function loadFile(file) {
-  if (!file || busy || loadingModel) return;
+  if (!file || busy || loadingModel) return false;
   loadingModel = true; $('upload').disabled = true; $('demo').disabled = true; busyState(false);
   setText('model-status','READING .3DM…');
   try {
@@ -110,33 +122,25 @@ async function loadFile(file) {
     $('model-status').title = messages.join('\n');
     if (messages.length) toast('已导入，但部分曲面可能缺少渲染网格。请在 Rhino 着色视图保存，或先执行 Mesh。');
     dirty();
-  } catch (error) { setText('model-status','导入失败 · 保留原模型'); toast(error.message || '无法读取此 .3dm 文件。'); }
+    return true;
+  } catch (error) { setText('model-status','导入失败 · 保留原模型'); toast(error.message || '无法读取此 .3dm 文件。'); return false; }
   finally { loadingModel = false; $('upload').disabled = false; $('demo').disabled = false; $('file').value = ''; busyState(false); }
 }
-
 
 let bundledDefaultFile;
 async function restoreDefaultModel() {
   if (busy || loadingModel) return false;
-  loadingModel = true;
-  $('upload').disabled = true; $('demo').disabled = true; busyState(false);
+  loadingModel=true;$('upload').disabled=true;$('demo').disabled=true;busyState(false);
   setText('model-status','READING .3DM…');
   try {
-    if (!bundledDefaultFile) {
-      const response = await fetch(new URL('./models/massing-model-v2.3dm', import.meta.url), {signal:AbortSignal.timeout(20000)});
-      if (!response.ok) throw new Error('Default model download failed: ' + response.status);
-      bundledDefaultFile = new File([await response.arrayBuffer()], 'Massing Model v2 (1).3dm');
+    if(!bundledDefaultFile){
+      const response=await fetch(new URL('./models/massing-model-v2.3dm',import.meta.url),{signal:AbortSignal.timeout(20000)});
+      if(!response.ok)throw new Error('Default model download failed: '+response.status);
+      bundledDefaultFile=new File([await response.arrayBuffer()],'Massing Model v2 (1).3dm');
     }
-    loadingModel = false;
-    await loadFile(bundledDefaultFile);
-    return true;
-  } catch (error) {
-    setText('model-status','导入失败 · 保留原模型'); toast(error.message);
-    return false;
-  } finally {
-    loadingModel = false;
-    $('upload').disabled = false; $('demo').disabled = false; busyState(false);
-  }
+    loadingModel=false;return await loadFile(bundledDefaultFile);
+  } catch(error){setText('model-status','导入失败 · 保留原模型');toast(error.message);return false;}
+  finally{loadingModel=false;$('upload').disabled=false;$('demo').disabled=false;busyState(false);}
 }
 
 async function download(type) {
@@ -146,7 +150,7 @@ async function download(type) {
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/' + type, .96));
   if (!blob) { toast('导出失败，请降低分辨率后重试。'); return; }
   const url = URL.createObjectURL(blob), link = document.createElement('a');
-  link.href = url; link.download = `yiwu-${exportPlate.mode}-${exportPlate.seed}.${type === 'jpeg' ? 'jpg' : 'png'}`;
+  link.href = url; link.download = `yiwu-${legacy ? 'color' : 'transparency'}-${exportPlate.mode}-${exportPlate.seed}.${type === 'jpeg' ? 'jpg' : 'png'}`;
   document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url),60000);
   setText('toast',() => `${t('已生成下载文件')} / ${type.toUpperCase()} / ${canvas.width} × ${canvas.height} PX`);
   $('toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').hidden=true,5000);
@@ -168,11 +172,11 @@ function registerTools() {
 function setMode(value) { mode = value; document.querySelectorAll('[data-mode]').forEach(b => { b.classList.toggle('active',b.dataset.mode===mode); b.setAttribute('aria-pressed',String(b.dataset.mode===mode)); }); $('layer-control').hidden = mode !== 'layers'; dirty(); }
 
 try {
-  viewport = new ModelViewport($('viewport'), angles => { $('angle-label').textContent = `AZ ${angles.azimuth.toFixed(0)}° / EL ${angles.elevation.toFixed(0)}°`; dirty(); }, legacy ? { initialView:'iso', captureWidth:760 } : {});
+  viewport = new ModelViewport($('viewport'), angles => { $('angle-label').textContent = `AZ ${angles.azimuth.toFixed(0)}° / EL ${angles.elevation.toFixed(0)}°`; dirty(); }, { initialView:'iso', captureWidth:760 });
   updateInfo(viewport.info());
   $('upload').onclick = () => $('file').click();
   $('file').onchange = () => loadFile($('file').files[0]);
-  $('demo').onclick = async () => { if (await restoreDefaultModel()) await run(); };
+  $('demo').onclick = async () => { if(await restoreDefaultModel()) await run(); };
   $('model-stage').ondragover = e => { e.preventDefault(); };
   $('model-stage').ondrop = e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); };
   $('front').onclick = () => viewport.fit('front'); $('iso').onclick = () => viewport.fit('iso'); $('fit').onclick = () => viewport.fit();
@@ -183,6 +187,7 @@ try {
     if (b.dataset.period !== 'custom') { requested = rangeFor(+b.dataset.period); $('start-date').value=requested.start; $('end-date').value=requested.end; fetchWeather(); }
   });
   ['density','contrast','intensity','layers'].forEach(id => $(id).oninput = () => { $(id+'-value').value = $(id).value + (['contrast','intensity'].includes(id)?'%':''); dirty(); });
+  if(!legacy){['transparency-scale','transparency-variation'].forEach(id=>$(id).oninput=()=>{$(id+'-value').value=$(id).value+'%';dirty();});$('transparency-color').oninput=dirty;}
   document.querySelectorAll('[data-channel]').forEach(input => input.onchange=dirty);
   $('start-date').value=requested.start; $('end-date').value=requested.end;
   $('start-date').max=latestDate(); $('end-date').max=latestDate();
