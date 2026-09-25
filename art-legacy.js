@@ -80,25 +80,30 @@ export function makePlate(capture, settings, weather, seed) {
       if(!pool.length) continue;
       if(p.pattern==='blocks') {
         const count=Math.max(1,Math.round(p.amount/100*14)),inset=.03+p.spacing/100*.15;
+        const rows=new Map();
+        for(const [left,top,length] of clipRuns) {
+          const y=top+.5,row=rows.get(y);
+          if(row)row.right=Math.max(row.right,left+length);
+          else rows.set(y,{y,left,right:left+length});
+        }
+        const occupiedRows=[...rows.values()];
         for(let i=0;i<count;i++) {
           const d=pool[Math.floor(random()*pool.length)],speed=clamp(d.wind/45);
           const direction=(d.direction||0)*Math.PI/180,az=(capture.angles?.azimuth||0)*Math.PI/180;
           const flow=-Math.sin(direction)*Math.cos(az)-Math.cos(direction)*Math.sin(az);
-          const angle=Math.atan((.1+speed*.65)*flow)+p.angle*Math.PI/180+(random()-.5)*jitter*.65;
-          // Distribute complete blocks through the facade, not on the dot grid.
+          const fromLeft=Math.abs(flow)<.05?random()<.5:flow>0;
+          // Horizontal bands enter at an outer facade edge, never from its interior.
           const level=(i+.5+(random()-.5)*jitter*.8)/count;
-          let x,y;
-          for(let attempt=0;attempt<100;attempt++) {
-            x=minX+spanX*(inset+random()*(1-2*inset));
-            y=minY+spanY*(inset+level*(1-2*inset));
-            if(inside(x,y))break;
-          }
-          if(!inside(x,y)) {const run=clipRuns[Math.floor(random()*clipRuns.length)];x=run[0]+run[2]/2;y=run[1]+.5;}
-          const length=spanX*(.18+.3*p.length/100)*(.65+.35*speed)*(1+(random()-.5)*jitter);
+          const targetY=minY+spanY*(inset+level*(1-2*inset));
+          const row=occupiedRows.reduce((best,row)=>Math.abs(row.y-targetY)<Math.abs(best.y-targetY)?row:best);
+          const y=row.y;
+          const length=(row.right-row.left)*clamp((.2+.4*p.length/100)*(.65+.35*speed)*(1+(random()-.5)*jitter),.05,1);
           const weight=clamp(spanY*(.025+.045*speed)*(p.width/.9)*(1+(random()-.5)*jitter),unit*2,spanY*.2);
-          const dx=length/2*Math.cos(angle),dy=length/2*Math.sin(angle);
-          raw.push({channel,shape:'block',x1:x-dx,y1:y-dy,x2:x+dx,y2:y+dy,width:weight,
-            color:p.color,stops:[0,.28,.65,1].map(offset=>({offset,color:gradient(p.color,flow<0?1-offset:offset,p.fade)})),
+          const bandRows=occupiedRows.filter(row=>Math.abs(row.y-y)<=weight/2+.5);
+          const x1=fromLeft?Math.min(...bandRows.map(row=>row.left)):Math.max(...bandRows.map(row=>row.right));
+          const x2=fromLeft?row.left+length:row.right-length;
+          raw.push({channel,shape:'block',side:fromLeft?'left':'right',x1,y1:y,x2,y2:y,width:weight,
+            color:p.color,stops:[0,.28,.65,1].map(offset=>({offset,color:gradient(p.color,offset,p.fade)})),
             alpha:clamp(settings.intensity)*p.opacity/100});
         }
         continue;

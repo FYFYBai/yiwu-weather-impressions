@@ -22,7 +22,7 @@ const labels = {
   herringbone: ['Herringbone', '\u4eba\u5b57\u7eb9'], blocks: ['Color blocks', '\u8272\u5757'],
   crosshatch: ['Color blocks', '\u8272\u5757'],
   blockAmount: ['Amount', '\u6570\u91cf'], blockWidth: ['Block thickness', '\u8272\u5757\u539a\u5ea6'],
-  blockSpacing: ['Placement inset', '\u4f4d\u7f6e\u5185\u7f29'],
+  blockSpacing: ['Vertical inset', '\u5782\u76f4\u7559\u767d'],
   connected: ['Linked dots', '\u8fde\u70b9\u7ebf'], stepped: ['Stepped', '\u9636\u68af\u7eb9'],
   wave: ['Wave', '\u6ce2\u7eb9'], squares: ['Squares', '\u65b9\u5757'],
   diamonds: ['Diamonds', '\u83f1\u5f62'], dots: ['Dots', '\u5706\u70b9']
@@ -74,7 +74,7 @@ export function createPatternControls({ onChange = () => {} } = {}) {
         <div class="pattern-select-row"><label for="pattern-kind">${translated('pattern')}</label><select id="pattern-kind">${PATTERN_OPTIONS[active].map(pattern => `<option value="${pattern}"${pattern === config.pattern ? ' selected' : ''}>${translated(pattern)}</option>`).join('')}</select></div>
         <div class="pattern-color-row"><label for="pattern-color">${translated('color')}</label><div class="pattern-color-value"><output id="pattern-color-value" for="pattern-color">${config.color}</output><input id="pattern-color" type="color" value="${config.color}"></div></div>
         ${['amount', 'width', 'length'].map(slider).join('')}
-        <details class="pattern-advanced"${expanded ? ' open' : ''}><summary>${translated('advanced')}</summary><div>${['spacing', 'angle', 'variation', 'opacity', 'weave', 'fade'].map(slider).join('')}</div></details>
+        <details class="pattern-advanced"${expanded ? ' open' : ''}><summary>${translated('advanced')}</summary><div>${['spacing', 'angle', 'variation', 'opacity', 'weave', 'fade'].filter(field=>config.pattern!=='blocks'||field!=='angle').map(slider).join('')}</div></details>
         <div class="pattern-actions"><button id="pattern-reset" class="icon" type="button" title="${translated('reset')}" aria-label="${translated('reset')}"><i data-lucide="rotate-ccw"></i></button></div>
       </div>`;
     syncColors();
