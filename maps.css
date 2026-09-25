@@ -1,4 +1,20 @@
 body[data-map]{--map-header-height:76px}
+.artwork-expand{position:absolute;right:10px;top:10px;width:34px;height:34px;background:#fffffff0;border:1px solid #d5d7d2;z-index:2}
+#artwork[aria-disabled=false]{cursor:zoom-in}
+.artwork-dialog{position:fixed;inset:0;margin:auto;width:calc(100vw - 48px);height:calc(100dvh - 48px);max-width:1800px;max-height:none;padding:0;border:1px solid #b7bdbb;background:#eef1f0;color:#202220;overflow:hidden}
+.artwork-dialog::backdrop{background:#171d21b3}
+.artwork-dialog[open]{display:flex;flex-direction:column}
+.artwork-viewer-toolbar{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;background:#fff;border-bottom:1px solid #d5d7d2}
+.artwork-viewer-toolbar h2{font-size:14px;font-weight:500;min-width:0}
+.artwork-viewer-tools{display:flex;align-items:center;gap:6px;flex:none}
+.artwork-viewer-tools output{width:48px;text-align:center;font-size:11px}
+.artwork-viewer-tools .icon{width:34px;height:34px}
+.artwork-viewer-stage{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;user-select:none;overscroll-behavior:contain}
+.artwork-viewer-stage.is-zoomed{cursor:grab}
+.artwork-viewer-stage.is-dragging{cursor:grabbing}
+#artwork-detail{position:absolute;left:50%;top:50%;display:block;max-width:none;max-height:none;box-shadow:0 2px 16px #1d292314;pointer-events:none}
+body.artwork-viewer-open{overflow:hidden}
+@media(max-width:640px){.artwork-dialog{width:100vw;height:100dvh;max-width:100vw;border:0}.artwork-viewer-toolbar{height:58px;padding:0 10px;gap:6px}.artwork-viewer-toolbar h2{font-size:12px;line-height:1.3}.artwork-viewer-tools{gap:2px}.artwork-viewer-tools .icon{width:32px;height:36px}.artwork-viewer-tools output{width:40px;font-size:10px}}
 body[data-map] .masthead{height:var(--map-header-height);gap:30px}
 .map-nav{display:flex;align-self:stretch;align-items:stretch;gap:24px;min-width:0}
 .map-nav a{display:flex;align-items:center;justify-content:center;border-bottom:2px solid transparent;text-decoration:none;font-size:12px;white-space:nowrap;padding-top:2px;color:var(--muted)}

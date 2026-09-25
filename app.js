@@ -1,6 +1,7 @@
 import { ModelViewport } from './geometry.js';
 import { getWeather, rangeFor, latestDate } from './weather.js';
 import { t, setText, initializeLanguage } from './i18n.js';
+import { createArtworkViewer } from './image-viewer.js';
 
 const mapKind = ['transparency','reflectivity'].includes(document.body.dataset.map) ? document.body.dataset.map : 'color';
 const legacy = mapKind === 'color';
@@ -16,6 +17,7 @@ if (mapKind === 'reflectivity') {
   $('density-value').value='200';
 }
 let viewport, weather = null, plate = null, mode = 'surface', edition = 0, busy = false, loadingModel = false;
+const imageViewer=createArtworkViewer({canvas:$('artwork'),title:{color:'Color Map',transparency:'Transparency Map',reflectivity:'Reflectivity Map'}[mapKind]});
 let requested = rangeFor(365), weatherAbort, toastTimer, weatherSequence = 0, revision = 0;
 const patternControls = legacy ? (await import('./pattern-controls.js')).createPatternControls({ onChange:dirty }) : null;
 function toast(message) { setText('toast',message); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
@@ -36,6 +38,7 @@ function updateInfo(info) { $('geometry-info').textContent = `${info.meshes.toLo
 function busyState(value) {
   busy = value; $('run').disabled = value || loadingModel; $('png').disabled = value || !plate; $('jpeg').disabled = value || !plate;
   $('working').hidden = !value;
+  imageViewer.setAvailable(!value&&!!plate);
   if (viewport) viewport.controls.enabled = !value && !loadingModel;
 }
 async function run({ initial = false } = {}) {
@@ -48,6 +51,7 @@ async function run({ initial = false } = {}) {
     const seed = crypto.getRandomValues(new Uint32Array(1))[0];
     plate = makePlate(capture, config, weather, seed);
     drawPlate($('artwork'), plate);
+    imageViewer.refresh();
     edition++;
     $('seed-label').textContent = `EDITION / ${String(edition).padStart(4,'0')}`;
     const printEdition = edition, hasWeather = !!weather;
