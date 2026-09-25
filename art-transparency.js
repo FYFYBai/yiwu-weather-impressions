@@ -21,6 +21,25 @@ function noise(x,y,seed) {
   return (hash(ix,iy)*(1-u)+hash(ix+1,iy)*u)*(1-v)+(hash(ix,iy+1)*(1-u)+hash(ix+1,iy+1)*u)*v;
 }
 
+function normalizeTones(samples,target,variation) {
+  if(!samples.length)return;
+  const mean=samples.reduce((sum,sample)=>sum+sample.texture,0)/samples.length;
+  const variance=samples.reduce((sum,sample)=>sum+(sample.texture-mean)**2,0)/samples.length;
+  const deviation=Math.max(.085,Math.sqrt(variance));
+  const values=samples.map(sample=>(sample.texture-mean)/deviation*variation*2.2);
+  const tone=(value,bias)=>.055+.89/(1+Math.exp(-value-bias));
+  // Normalize overall exposure, not separate weather bands. The continuous
+  // response has no class boundaries, even when a sky category is absent.
+  let low=-12,high=12;
+  for(let iteration=0;iteration<18;iteration++){
+    const bias=(low+high)/2;
+    const average=values.reduce((sum,value)=>sum+tone(value,bias),0)/values.length;
+    if(average<target)low=bias;else high=bias;
+  }
+  const bias=(low+high)/2;
+  samples.forEach((sample,i)=>{sample.tone=tone(values[i],bias);});
+}
+
 export function makePlate(capture,settings,weather,seed) {
   const {width,height}=capture,pixels=capture.surface||capture.frames[0];
   const config=settings.transparency||{};
@@ -47,22 +66,26 @@ export function makePlate(capture,settings,weather,seed) {
     const u=(dx*.94+dy*.34)/patch+phaseX,v=(-dx*.34+dy*.94)/patch+phaseY;
     // Broad curves remain dominant, with a restrained second scale for local variation.
     const field=.78*noise(u,v,seed)+.14*noise(u*1.65,v*1.65,seed+17)+.08*noise(u*.5,v*.5,seed+33);
-    samples.push({x:xf,y:yf,light,field,pixel:p});
+    // Independent, gently warped scales introduce light pockets in dark fields
+    // and dark pockets in light fields without adding sharp noise or contours.
+    const warpX=(noise(u*.7+9,v*.7,seed+51)-.5)*.65;
+    const warpY=(noise(u*.7,v*.7-7,seed+73)-.5)*.65;
+    const detail=noise(u*2.1+warpX,v*2.1+warpY,seed+107);
+    const grain=noise(u*3.6+warpY,v*3.6-warpX,seed+149);
+    const texture=.50*(.5-field)+.42*(detail-.5)+.08*(grain-.5);
+    samples.push({x:xf,y:yf,light,field,texture,pixel:p});
   }
-  // Quantile allocation gives the three spatial fields the actual day ratios,
-  // independent of the nonuniform distribution of the organic noise field.
+  // Keep category counts for provenance, but do not turn their thresholds into
+  // visible bands: weather sets exposure and the mixed field supplies texture.
   const ranked=[...samples].sort((a,b)=>a.field-b.field);
   const rainEnd=ratios?Math.round(ratios.rainy*ranked.length):0;
   const cloudEnd=ratios?Math.round((ratios.rainy+ratios.cloudy)*ranked.length):0;
+  const mean=ratios?ratios.rainy*.82+ratios.cloudy*.49+ratios.sunny*.18:.48;
   ranked.forEach((sample,i)=>{
-    let tone,sky;
-    if(!ratios){sky='neutral';tone=.48;}
-    else if(i<rainEnd){sky='rainy';tone=.97-.29*i/Math.max(1,rainEnd);}
-    else if(i<cloudEnd){sky='cloudy';tone=.67-.35*(i-rainEnd)/Math.max(1,cloudEnd-rainEnd);}
-    else {sky='sunny';tone=.31-.24*(i-cloudEnd)/Math.max(1,ranked.length-cloudEnd);}
-    const mean=ratios?ratios.rainy*.82+ratios.cloudy*.49+ratios.sunny*.18:.48;
-    sample.tone=mean*(1-variation)+tone*variation;sample.sky=sky;
+    sample.sky=!ratios?'neutral':i<rainEnd?'rainy':i<cloudEnd?'cloudy':'sunny';
+    sample.tone=mean;
   });
+  if(ratios&&variation>0)normalizeTones(samples,mean,variation);
   const dots=[],ghosts=[];
   for(const sample of samples){
     const contrast=clamp(settings.contrast??.65),shade=clamp(.9+(.36-sample.light)*(.35+contrast*.7),.40,1.23);
