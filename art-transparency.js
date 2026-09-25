@@ -21,36 +21,6 @@ function noise(x,y,seed) {
   return (hash(ix,iy)*(1-u)+hash(ix+1,iy)*u)*(1-v)+(hash(ix,iy+1)*(1-u)+hash(ix+1,iy+1)*u)*v;
 }
 
-function softenTones(ranked) {
-  if(ranked.length<2)return;
-  const low=ranked[0].field,span=ranked.at(-1).field-low;
-  if(span<1e-8)return;
-  // Feather in field space, not rank space: even a missing cloudy category
-  // must leave a broad continuous transition between rain and sunshine.
-  const bins=256,ramp=new Float64Array(bins),soft=new Float64Array(bins);
-  let cursor=0;
-  for(let j=0;j<bins;j++){
-    const field=low+span*j/(bins-1);
-    while(cursor<ranked.length-2&&ranked[cursor+1].field<field)cursor++;
-    const a=ranked[cursor],b=ranked[cursor+1];
-    const t=clamp((field-a.field)/Math.max(1e-8,b.field-a.field));
-    ramp[j]=a.tone+(b.tone-a.tone)*t;
-  }
-  const sigma=Math.min(.25,Math.max(.065/span,.12))*(bins-1),reach=Math.ceil(sigma*3);
-  for(let j=0;j<bins;j++){
-    let sum=0,weight=0;
-    for(let k=-reach;k<=reach;k++){
-      const w=Math.exp(-.5*(k/sigma)**2);
-      sum+=ramp[clamp(j+k,0,bins-1)]*w;weight+=w;
-    }
-    soft[j]=sum/weight;
-  }
-  for(const sample of ranked){
-    const position=clamp((sample.field-low)/span)*(bins-1),index=Math.floor(position);
-    sample.tone=soft[index]+(soft[Math.min(index+1,bins-1)]-soft[index])*(position-index);
-  }
-}
-
 export function makePlate(capture,settings,weather,seed) {
   const {width,height}=capture,pixels=capture.surface||capture.frames[0];
   const config=settings.transparency||{};
@@ -93,7 +63,6 @@ export function makePlate(capture,settings,weather,seed) {
     const mean=ratios?ratios.rainy*.82+ratios.cloudy*.49+ratios.sunny*.18:.48;
     sample.tone=mean*(1-variation)+tone*variation;sample.sky=sky;
   });
-  if(ratios&&variation>0)softenTones(ranked);
   const dots=[],ghosts=[];
   for(const sample of samples){
     const contrast=clamp(settings.contrast??.65),shade=clamp(.9+(.36-sample.light)*(.35+contrast*.7),.40,1.23);
@@ -138,9 +107,9 @@ export function drawPlate(canvas,plate,width=1500) {
   // for every opacity group in a large PNG export.
   for(const layer of [plate.ghosts,plate.dots]){
     const batches=new Map();
-    for(const dot of layer){const key=Math.round(dot.alpha*256);if(!batches.has(key))batches.set(key,[]);batches.get(key).push(dot);}
+    for(const dot of layer){const key=Math.round(dot.alpha*64);if(!batches.has(key))batches.set(key,[]);batches.get(key).push(dot);}
     for(const [alpha,dots] of batches){
-      ink.fillStyle=dots[0].color;ink.globalAlpha=alpha/256;ink.beginPath();
+      ink.fillStyle=dots[0].color;ink.globalAlpha=alpha/64;ink.beginPath();
       for(const dot of dots){ink.moveTo(dot.x+dot.radius,dot.y);ink.arc(dot.x,dot.y,dot.radius,0,Math.PI*2);}
       ink.fill();
     }
