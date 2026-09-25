@@ -79,24 +79,28 @@ export function makePlate(capture, settings, weather, seed) {
       const pool=days.filter(d=>d.wind>.5);
       if(!pool.length) continue;
       if(p.pattern==='blocks') {
-        const d=pool[Math.floor(random()*pool.length)],speed=clamp(d.wind/45);
-        const direction=(d.direction||0)*Math.PI/180,az=(capture.angles?.azimuth||0)*Math.PI/180;
-        const flow=-Math.sin(direction)*Math.cos(az)-Math.cos(direction)*Math.sin(az);
-        const angle=Math.atan((.1+speed*.65)*flow)+p.angle*Math.PI/180+(random()-.5)*jitter*.65;
-        const inset=.05+p.spacing/100*.3;
-        let x,y;
-        for(let attempt=0;attempt<100;attempt++) {
-          x=minX+spanX*(inset+random()*(1-2*inset));
-          y=minY+spanY*(inset+random()*(1-2*inset));
-          if(inside(x,y))break;
+        const count=Math.max(1,Math.round(p.amount/100*14)),inset=.03+p.spacing/100*.15;
+        for(let i=0;i<count;i++) {
+          const d=pool[Math.floor(random()*pool.length)],speed=clamp(d.wind/45);
+          const direction=(d.direction||0)*Math.PI/180,az=(capture.angles?.azimuth||0)*Math.PI/180;
+          const flow=-Math.sin(direction)*Math.cos(az)-Math.cos(direction)*Math.sin(az);
+          const angle=Math.atan((.1+speed*.65)*flow)+p.angle*Math.PI/180+(random()-.5)*jitter*.65;
+          // Distribute complete blocks through the facade, not on the dot grid.
+          const level=(i+.5+(random()-.5)*jitter*.8)/count;
+          let x,y;
+          for(let attempt=0;attempt<100;attempt++) {
+            x=minX+spanX*(inset+random()*(1-2*inset));
+            y=minY+spanY*(inset+level*(1-2*inset));
+            if(inside(x,y))break;
+          }
+          if(!inside(x,y)) {const run=clipRuns[Math.floor(random()*clipRuns.length)];x=run[0]+run[2]/2;y=run[1]+.5;}
+          const length=spanX*(.18+.3*p.length/100)*(.65+.35*speed)*(1+(random()-.5)*jitter);
+          const weight=clamp(spanY*(.025+.045*speed)*(p.width/.9)*(1+(random()-.5)*jitter),unit*2,spanY*.2);
+          const dx=length/2*Math.cos(angle),dy=length/2*Math.sin(angle);
+          raw.push({channel,shape:'block',x1:x-dx,y1:y-dy,x2:x+dx,y2:y+dy,width:weight,
+            color:p.color,stops:[0,.28,.65,1].map(offset=>({offset,color:gradient(p.color,flow<0?1-offset:offset,p.fade)})),
+            alpha:clamp(settings.intensity)*p.opacity/100});
         }
-        if(!inside(x,y)) {const run=clipRuns[Math.floor(random()*clipRuns.length)];x=run[0]+run[2]/2;y=run[1]+.5;}
-        const length=spanX*(.3+.65*p.length/100)*(.65+.35*speed);
-        const weight=clamp(spanY*(.08+.16*speed)*(p.width/.9)*(.3+.7*p.amount/100),unit*2,spanY*.5);
-        const dx=length/2*Math.cos(angle),dy=length/2*Math.sin(angle);
-        raw.push({channel,shape:'block',x1:x-dx,y1:y-dy,x2:x+dx,y2:y+dy,width:weight,
-          color:p.color,stops:[0,.28,.65,1].map(offset=>({offset,color:gradient(p.color,flow<0?1-offset:offset,p.fade)})),
-          alpha:clamp(settings.intensity)*p.opacity/100});
         continue;
       }
       const stride=Math.max(step*.9,step*(.85+p.spacing/100)),phase=random()*Math.PI*2;
