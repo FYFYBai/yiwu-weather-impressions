@@ -40,7 +40,8 @@ export function normalizePatterns(input = {}) {
   for (const [channel, fallback] of Object.entries(DEFAULT_PATTERNS)) {
     const candidate = input?.[channel] || {};
     const value = { ...fallback };
-    value.pattern = PATTERN_OPTIONS[channel].includes(candidate.pattern) ? candidate.pattern : fallback.pattern;
+    const pattern = channel === 'wind' && candidate.pattern === 'crosshatch' ? 'blocks' : candidate.pattern;
+    value.pattern = PATTERN_OPTIONS[channel].includes(pattern) ? pattern : fallback.pattern;
     value.color = normalizeColor(candidate.color, fallback.color);
     for (const [field, range] of Object.entries(NUMERIC_FIELDS)) {
       const number = candidate[field];

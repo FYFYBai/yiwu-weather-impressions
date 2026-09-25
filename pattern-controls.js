@@ -20,11 +20,13 @@ const labels = {
   stitch: ['Broken stitch', '\u65ad\u7eed\u7ec6\u9488'], continuous: ['Continuous', '\u8fde\u7eed\u7ebf'],
   zigzag: ['Zigzag', '\u6298\u7ebf'], strokes: ['Short strokes', '\u77ed\u7ebf'],
   herringbone: ['Herringbone', '\u4eba\u5b57\u7eb9'], blocks: ['Color blocks', '\u6761\u72b6\u8272\u5757'],
+  crosshatch: ['Color blocks', '\u6761\u72b6\u8272\u5757'],
   connected: ['Linked dots', '\u8fde\u70b9\u7ebf'], stepped: ['Stepped', '\u9636\u68af\u7eb9'],
   wave: ['Wave', '\u6ce2\u7eb9'], squares: ['Squares', '\u65b9\u5757'],
   diamonds: ['Diamonds', '\u83f1\u5f62'], dots: ['Dots', '\u5706\u70b9']
 };
-const translated = key => labels[key][document.documentElement.lang.startsWith('zh') ? 1 : 0];
+export const patternLabel = (key, language='en') => (labels[key] || labels.pattern)[language.startsWith('zh') ? 1 : 0];
+const translated = key => patternLabel(key, document.documentElement.lang);
 const fieldLabel = (channel, field) => {
   if (channel === 'sun' && field === 'width') return 'sunWidth';
   if (channel === 'sun' && field === 'length') return 'sunLength';
