@@ -167,9 +167,9 @@ async function restoreDefaultModel() {
   setText('model-status','READING .3DM…');
   try {
     if(!bundledDefaultFile){
-      const response=await fetch(new URL('./models/massing-model-v2.3dm',import.meta.url),{signal:AbortSignal.timeout(20000)});
+      const response=await fetch(new URL('./models/massing-model-v3.2.3dm',import.meta.url),{signal:AbortSignal.timeout(20000)});
       if(!response.ok)throw new Error('Default model download failed: '+response.status);
-      bundledDefaultFile=new File([await response.arrayBuffer()],'Massing Model v2 (1).3dm');
+      bundledDefaultFile=new File([await response.arrayBuffer()],'Massing Model v3.2.3dm');
     }
     loadingModel=false;return await loadFile(bundledDefaultFile);
   } catch(error){setText('model-status','导入失败 · 保留原模型');toast(error.message);return false;}
