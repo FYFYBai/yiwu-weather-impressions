@@ -16,7 +16,8 @@ export function skyRatios(weather) {
 function noise(x,y,seed) {
   const hash=(a,b)=>{let v=Math.imul(a,374761393)+Math.imul(b,668265263)+Math.imul(seed,1442695041);v=Math.imul(v^(v>>>13),1274126177);return ((v^(v>>>16))>>>0)/4294967295;};
   const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
-  const u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+  const smooth=t=>t*t*t*(t*(t*6-15)+10);
+  const u=smooth(fx),v=smooth(fy);
   return (hash(ix,iy)*(1-u)+hash(ix+1,iy)*u)*(1-v)+(hash(ix,iy+1)*(1-u)+hash(ix+1,iy+1)*u)*v;
 }
 
@@ -34,7 +35,7 @@ export function makePlate(capture,settings,weather,seed) {
     mask[y*width+x]=1;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
   }
   if(maxX<minX)throw new Error('当前视角没有可见模型，请点击适配模型后重试。');
-  const spanX=maxX-minX+1,spanY=maxY-minY+1,patch=Math.max(spanX*.22,spanY*.12,step*10);
+  const spanX=maxX-minX+1,spanY=maxY-minY+1,patch=Math.max(spanX*.42,spanY*.26,step*10);
   const samples=[];
   for(let yf=step/2;yf<height;yf+=step)for(let xf=step/2;xf<width;xf+=step){
     const x=Math.round(xf),y=Math.round(yf);
@@ -42,8 +43,10 @@ export function makePlate(capture,settings,weather,seed) {
     const p=((height-y-1)*width+x)*4;
     const nx=pixels[p]/127.5-1,ny=pixels[p+1]/127.5-1,nz=pixels[p+2]/127.5-1;
     const light=clamp(nx*-.48+ny*.61+nz*.63);
-    const u=(xf-minX)/patch+phaseX,v=(yf-minY)/patch+phaseY;
-    const field=.58*noise(u,v,seed)+.27*noise(u*2.1,v*2.1,seed+17)+.15*(.5+.5*Math.sin(v*2.9+noise(u*.5,v*.6,seed+33)*4));
+    const dx=xf-minX,dy=yf-minY;
+    const u=(dx*.94+dy*.34)/patch+phaseX,v=(-dx*.34+dy*.94)/patch+phaseY;
+    // Broad, gently rotated fields avoid the small curls of layered high-frequency noise.
+    const field=.88*noise(u,v,seed)+.12*noise(u*.5,v*.5,seed+33);
     samples.push({x:xf,y:yf,light,field,pixel:p});
   }
   // Quantile allocation gives the three spatial fields the actual day ratios,
