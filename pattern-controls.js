@@ -19,7 +19,7 @@ const labels = {
   reset: ['Reset this element', '\u91cd\u7f6e\u5f53\u524d\u5143\u7d20'],
   stitch: ['Broken stitch', '\u65ad\u7eed\u7ec6\u9488'], continuous: ['Continuous', '\u8fde\u7eed\u7ebf'],
   zigzag: ['Zigzag', '\u6298\u7ebf'], strokes: ['Short strokes', '\u77ed\u7ebf'],
-  herringbone: ['Herringbone', '\u4eba\u5b57\u7eb9'], crosshatch: ['Crosshatch', '\u4ea4\u53c9\u7eb9'],
+  herringbone: ['Herringbone', '\u4eba\u5b57\u7eb9'], blocks: ['Color blocks', '\u6761\u72b6\u8272\u5757'],
   connected: ['Linked dots', '\u8fde\u70b9\u7ebf'], stepped: ['Stepped', '\u9636\u68af\u7eb9'],
   wave: ['Wave', '\u6ce2\u7eb9'], squares: ['Squares', '\u65b9\u5757'],
   diamonds: ['Diamonds', '\u83f1\u5f62'], dots: ['Dots', '\u5706\u70b9']

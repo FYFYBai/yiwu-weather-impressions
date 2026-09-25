@@ -88,11 +88,11 @@ export function makePlate(capture, settings, weather, seed) {
         const weaveRow=Math.floor(y/stride);
         const slope=(p.pattern==='herringbone'?(weaveRow%2?1:-1):1)*(.10+speed*.65)*flow;
         const angle=Math.atan(slope)+p.angle*Math.PI/180+(random()-.5)*jitter*.65;
-        const length=step*(.45+p.length/100*1.8)*(1+(random()-.5)*jitter*.55);
-        const weight=p.width*unit*(.6+speed*1.25);
+        const block=p.pattern==='blocks';
+        const length=step*(.45+p.length/100*1.8)*(1+(random()-.5)*jitter*.55)*(block?1.8:1);
+        const weight=p.width*unit*(.6+speed*1.25)*(block?3:1);
         const progress=flow<0?(maxX-x)/Math.max(1,spanX):(x-minX)/Math.max(1,spanX);
         stroke(channel,x-length/2*Math.cos(angle),y-length/2*Math.sin(angle),x+length/2*Math.cos(angle),y+length/2*Math.sin(angle),weight,progress);
-        if(p.pattern==='crosshatch') stroke(channel,x-length/2*Math.cos(angle),y+length/2*Math.sin(angle),x+length/2*Math.cos(angle),y-length/2*Math.sin(angle),weight*.72,progress);
       }
     } else if(channel==='flood') {
       const pool=days.filter(d=>d.flood>.01);

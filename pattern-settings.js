@@ -2,7 +2,7 @@ export const DEFAULT_BASE_COLOR = '#C3D1D1';
 
 export const PATTERN_OPTIONS = Object.freeze({
   rain: Object.freeze(['stitch', 'continuous', 'zigzag']),
-  wind: Object.freeze(['strokes', 'herringbone', 'crosshatch']),
+  wind: Object.freeze(['strokes', 'herringbone', 'blocks']),
   flood: Object.freeze(['connected', 'stepped', 'wave']),
   sun: Object.freeze(['squares', 'diamonds', 'dots'])
 });
