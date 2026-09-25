@@ -1,6 +1,6 @@
 # YIWU / Weather Maps
 
-Color Map is the home page; /2/ remains an alias. Transparency Map at /transparency/ uses rainfall and sunshine-derived sky proportions to create variable-size, variable-opacity dots. Reflectivity Map at /reflectivity/ interprets the same sky proportions as engraved shards, crosshatching and grain, with configurable ink, mark size, directional flow, glint contrast and scatter.
+Color Map is the home page; /2/ remains an alias. Transparency Map at /transparency/ uses rainfall and sunshine-derived sky proportions to create variable-size, variable-opacity dots. Reflectivity Map at /reflectivity/ interprets the same sky proportions as engraved shards, crosshatching and grain, with configurable ink, mark size, directional flow, glint contrast and dark coverage.
 
 The bundled default is Massing Model v2 (1).3dm. Import another Rhino model, choose a view and generate. SVG, PNG and JPEG export are available on all three maps; SVG retains vector marks without embedded raster images. Color Map also uses vector previews and flat-ended strokes. Reset restores the bundled model. All assets are relative to the GitHub Pages project root.
 

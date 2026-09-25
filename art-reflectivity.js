@@ -18,7 +18,7 @@ export function makePlate(capture,settings,weather,seed){
   const config=settings.reflectivity||{};
   const color=/^#[\da-f]{6}$/i.test(config.color||'')?config.color:DEFAULT_REFLECTIVITY_COLOR;
   const scale=control(config.scale,100,60,160),flow=control(config.flow,65);
-  const glint=control(config.glint,65),scatter=control(config.scatter,35);
+  const glint=control(config.glint,65),coverage=control(config.scatter,35);
   const pattern=['shards','crosshatch','grain'].includes(config.pattern)?config.pattern:'shards';
   const density=clamp(Number.isFinite(settings.density)?settings.density:260,60,600),step=capture.width/density;
   // Reuse the established surface sampling, paper framing and silhouette mask.
@@ -42,7 +42,8 @@ export function makePlate(capture,settings,weather,seed){
   });
   const faceMean=faces.reduce((sum,value)=>sum+value,0)/Math.max(1,faces.length);
   const exposure=fields.map((value,index)=>(value-mean)/deviation*(.90+glint*.50)+(faces[index]-.6)*.55);
-  const target=.60+rain*.022+cloud*.018+(faceMean-.6)*.04;
+  const coverageShift=(coverage-.35)*(coverage<.35?.65:.36);
+  const target=.60+coverageShift+rain*.022+cloud*.018+(faceMean-.6)*.04;
   const response=(value,bias)=>1/(1+Math.exp(-value-bias));
   // Normalize continuous exposure, not discrete tone bands: rerolls keep a
   // consistent darker coverage while local light pockets and folds survive.
@@ -60,15 +61,15 @@ export function makePlate(capture,settings,weather,seed){
     const nx=pixels[p]/127.5-1,ny=pixels[p+1]/127.5-1;
     const u=(x-minX)/patch+phase,v=(y-minY)/patch+phase*.43;
     const tone=response(exposure[index],bias);
-    const texture=smooth((tone-.12)/.67),spark=smooth((tone-(.66-sun*.04))/.26);
+    const texture=smooth((tone-.12)/.67),spark=smooth((tone-(.66-sun*.04))/.26)*Math.min(1,coverage/.15);
     // Diffuse areas scatter short flecks; dark areas align into crisp, slanted
     // hatch patches. Surface normals reverse the slant across building folds.
     const direction=(nx<-.08?-.55:.55)+ny*.18+wind*.06;
     const drift=(noise(u*1.4,v*1.4,seed+91)-.5)*.35;
     const alignment=clamp(.10+flow*(.16+spark*1.3),0,.97);
     const loose=(random()-.5)*Math.PI;
-    const angle=(direction+drift)*alignment+loose*(1-alignment)+(random()-.5)*scatter*.6;
-    const jx=(random()-.5)*step*scatter*.18,jy=(random()-.5)*step*scatter*.18;
+    const angle=(direction+drift)*alignment+loose*(1-alignment)+(random()-.5)*.35*.6;
+    const jx=(random()-.5)*step*.35*.18,jy=(random()-.5)*step*.35*.18;
     const length=step*clamp((.065+texture*.60+spark*.105+rain*.035)*scale,.035,.80);
     const stroke=step*clamp((.048+texture*.045+spark*(.085+glint*.11))*scale,.025,.24);
     const alpha=clamp(.40+texture*.31+spark*(.20+contrast*.14),.16,.99);
