@@ -2,24 +2,33 @@ import { ModelViewport } from './geometry.js';
 import { getWeather, rangeFor, latestDate } from './weather.js';
 import { t, setText, initializeLanguage } from './i18n.js';
 
-const legacy = document.body.dataset.map !== 'transparency';
-const { makePlate, drawPlate, skyRatios } = await import(legacy ? './art-legacy.js' : './art-transparency.js');
+const mapKind = ['transparency','reflectivity'].includes(document.body.dataset.map) ? document.body.dataset.map : 'color';
+const legacy = mapKind === 'color';
+const { makePlate, drawPlate, skyRatios } = await import({color:'./art-legacy.js',transparency:'./art-transparency.js',reflectivity:'./art-reflectivity.js'}[mapKind]);
 const $ = id => document.getElementById(id);
 initializeLanguage();
 if (legacy) {
   Object.assign($('density'), { min:'90', max:'320', step:'10', value:'170' });
   $('density-value').value='170';
 }
+if (mapKind === 'reflectivity') {
+  Object.assign($('density'), { min:'90', max:'360', step:'10', value:'200' });
+  $('density-value').value='200';
+}
 let viewport, weather = null, plate = null, mode = 'surface', edition = 0, busy = false, loadingModel = false;
 let requested = rangeFor(365), weatherAbort, toastTimer, weatherSequence = 0, revision = 0;
 const patternControls = legacy ? (await import('./pattern-controls.js')).createPatternControls({ onChange:dirty }) : null;
 function toast(message) { setText('toast',message); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
 function icons() { window.lucide?.createIcons(); }
-function settings() { return { ...patternControls?.getSettings(), transparency: legacy ? undefined : { color:$('transparency-color').value, scale:+$('transparency-scale').value, variation:+$('transparency-variation').value }, mode, density: +$('density').value, contrast: +$('contrast').value / 100, intensity: +$('intensity').value / 100,
+function settings() { return { ...patternControls?.getSettings(), transparency: mapKind === 'transparency' ? { color:$('transparency-color').value, scale:+$('transparency-scale').value, variation:+$('transparency-variation').value } : undefined,
+  reflectivity: mapKind === 'reflectivity' ? { color:$('reflectivity-color').value, pattern:$('reflectivity-pattern').value, scale:+$('reflectivity-scale').value, flow:+$('reflectivity-flow').value, glint:+$('reflectivity-glint').value, scatter:+$('reflectivity-scatter').value } : undefined,
+  mode, density: +$('density').value, contrast: +$('contrast').value / 100, intensity: +$('intensity').value / 100,
   channels: Object.fromEntries([...document.querySelectorAll('[data-channel]')].map(input => [input.dataset.channel,input.checked])) }; }
 function dirty() { revision++; if (plate && !busy) { $('run-state').textContent = 'CHANGED'; setText('print-tag',() => `YIWU / ${String(edition).padStart(3,'0')} · ${t('待重新生成')}`); } }
 function mapLabels() {
-  const labels={ 'transparency-settings':['Mark settings','点阵设置'], 'mark-color':['Mark color','点阵颜色'], 'mark-scale':['Dot size','点的大小'], 'mark-variation':['Tonal variation','层次变化'], rainy:['Rainy','雨天'],cloudy:['Cloudy (derived)','阴天（推算）'],sunny:['Sunny','晴天'] };
+  const labels={ 'transparency-settings':['Mark settings','点阵设置'], 'mark-color':['Mark color','点阵颜色'], 'mark-scale':['Dot size','点的大小'], 'mark-variation':['Tonal variation','层次变化'],
+    'reflectivity-settings':['Reflection settings','反射纹样设置'], 'reflection-color':['Ink color','纹样颜色'], 'reflection-pattern':['Pattern','纹样'], 'reflection-shards':['Shards','碎片'], 'reflection-crosshatch':['Crosshatch','交错排线'], 'reflection-grain':['Grain','颗粒'], 'reflection-scale':['Mark size','纹样大小'], 'reflection-flow':['Directional flow','方向强度'], 'reflection-glint':['Glint contrast','高光对比'], 'reflection-scatter':['Scatter','散布程度'], 'reflection-density':['Mark density','纹样密度'], 'reflection-style':['Engraved marks','刻痕纹样'],
+    rainy:['Rainy','雨天'],cloudy:['Cloudy (derived)','阴天（推算）'],sunny:['Sunny','晴天'] };
   document.querySelectorAll('[data-map-label]').forEach(el=>{el.textContent=labels[el.dataset.mapLabel][document.documentElement.lang.startsWith('zh')?1:0];});
 }
 mapLabels();document.addEventListener('studio-language-change',mapLabels);
@@ -44,7 +53,8 @@ async function run({ initial = false } = {}) {
     const printEdition = edition, hasWeather = !!weather;
     setText('print-tag',() => `YIWU / ${String(printEdition).padStart(3,'0')}${hasWeather ? '' : ' · '+t('无气象色彩')}`);
     $('run-state').textContent = 'READY';
-    $('print-mode').textContent = mode === 'surface' ? (legacy ? 'SURFACE / WEAVE' : 'SURFACE / DOTS') : `DEPTH × ${$('layers').value} / ${legacy ? 'WEAVE' : 'DOTS'}`;
+    const markMode = {color:'WEAVE',transparency:'DOTS',reflectivity:'REFLECTION'}[mapKind];
+    $('print-mode').textContent = mode === 'surface' ? `SURFACE / ${markMode}` : `DEPTH × ${$('layers').value} / ${markMode}`;
     $('print-info').textContent = `${$('artwork').width} × ${$('artwork').height} PX`;
     $('print-tag').title = plate.weatherRange || t('无气象数据');
     if (revision !== capturedRevision) $('run-state').textContent = 'CHANGED';
@@ -150,7 +160,7 @@ async function download(type) {
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/' + type, .96));
   if (!blob) { toast('导出失败，请降低分辨率后重试。'); return; }
   const url = URL.createObjectURL(blob), link = document.createElement('a');
-  link.href = url; link.download = `yiwu-${legacy ? 'color' : 'transparency'}-${exportPlate.mode}-${exportPlate.seed}.${type === 'jpeg' ? 'jpg' : 'png'}`;
+  link.href = url; link.download = `yiwu-${mapKind}-${exportPlate.mode}-${exportPlate.seed}.${type === 'jpeg' ? 'jpg' : 'png'}`;
   document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url),60000);
   setText('toast',() => `${t('已生成下载文件')} / ${type.toUpperCase()} / ${canvas.width} × ${canvas.height} PX`);
   $('toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').hidden=true,5000);
@@ -187,7 +197,11 @@ try {
     if (b.dataset.period !== 'custom') { requested = rangeFor(+b.dataset.period); $('start-date').value=requested.start; $('end-date').value=requested.end; fetchWeather(); }
   });
   ['density','contrast','intensity','layers'].forEach(id => $(id).oninput = () => { $(id+'-value').value = $(id).value + (['contrast','intensity'].includes(id)?'%':''); dirty(); });
-  if(!legacy){['transparency-scale','transparency-variation'].forEach(id=>$(id).oninput=()=>{$(id+'-value').value=$(id).value+'%';dirty();});$('transparency-color').oninput=dirty;}
+  if(mapKind === 'transparency'){['transparency-scale','transparency-variation'].forEach(id=>$(id).oninput=()=>{$(id+'-value').value=$(id).value+'%';dirty();});$('transparency-color').oninput=dirty;}
+  if(mapKind === 'reflectivity'){
+    ['reflectivity-scale','reflectivity-flow','reflectivity-glint','reflectivity-scatter'].forEach(id=>$(id).oninput=()=>{$(id+'-value').value=$(id).value+'%';dirty();});
+    $('reflectivity-color').oninput=dirty; $('reflectivity-pattern').onchange=dirty;
+  }
   document.querySelectorAll('[data-channel]').forEach(input => input.onchange=dirty);
   $('start-date').value=requested.start; $('end-date').value=requested.end;
   $('start-date').max=latestDate(); $('end-date').max=latestDate();

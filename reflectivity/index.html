@@ -5,15 +5,101 @@
   <base href="../">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>YIWU / Reflectivity Map</title>
+  <meta name="description" content="An architectural reflection study shaped by Yiwu weather.">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./maps.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+  <script src="./vendor/lucide.min.js" defer></script>
+  <script src="./app.js" type="module"></script>
 </head>
 <body data-map="reflectivity">
   <header class="masthead">
     <a class="wordmark" href="./">YIWU<span>/</span>义乌</a>
     <nav class="map-nav" aria-label="Map views"><a href="./">Color Map</a><a href="./transparency/">Transparency Map</a><a href="./reflectivity/" aria-current="page">Reflectivity Map</a></nav>
-    <div class="header-end"><span class="edition mono">EXPERIMENT 01 / 2026</span></div>
+    <div class="header-end"><span class="edition mono">EXPERIMENT 01 / 2026</span><select id="language" aria-label="语言"><option value="en">EN</option><option value="zh">中文</option></select></div>
   </header>
-  <main class="reflectivity-empty" aria-label="Reflectivity Map"></main>
+  <div class="studio">
+    <aside class="controls" aria-label="生成设置">
+      <div class="control-scroll">
+      <section>
+        <h2><span class="mono">01</span> 模型 <small>MODEL</small></h2>
+        <button id="upload" class="upload"><i data-lucide="upload"></i><span>导入 .3dm</span><i data-lucide="plus"></i></button>
+        <input id="file" type="file" accept=".3dm" hidden>
+        <div class="file-row"><span id="model-name">双塔 / 内置示例</span><button id="demo" class="icon" title="恢复默认模型" aria-label="恢复默认模型"><i data-lucide="rotate-ccw"></i></button></div>
+        <p id="model-status" class="meta" role="status">DEMO GEOMETRY / Z-UP</p>
+      </section>
+      <section>
+        <h2><span class="mono">02</span> 视图 <small>PROJECTION</small></h2>
+        <div class="seg" role="group" aria-label="投影方式"><button data-mode="surface" class="active" aria-pressed="true">可见表面</button><button data-mode="layers" aria-pressed="false">多层叠印</button></div>
+        <label class="control-row" for="style">生成风格<select id="style"><option value="marks" data-map-label="reflection-style">Engraved marks</option></select></label>
+        <label class="range-label" for="density"><span data-map-label="reflection-density">Mark density</span><output id="density-value">200</output></label>
+        <input id="density" type="range" min="90" max="360" value="200" step="10">
+        <label class="range-label" for="contrast">明暗对比<output id="contrast-value">65%</output></label>
+        <input id="contrast" type="range" min="20" max="100" value="65">
+        <div id="layer-control" hidden><label class="range-label" for="layers">叠印层数<output id="layers-value">6</output></label><input id="layers" type="range" min="3" max="12" value="6"></div>
+      </section>
+      <section>
+        <h2><span class="mono">03</span> 气象 <small>WEATHER</small></h2>
+        <div class="location"><span>义乌 · 浙江</span><span class="mono">29.31°N / 120.07°E</span></div>
+        <div class="seg periods" role="group" aria-label="气象时间范围"><button data-period="90">90天</button><button data-period="365" class="active" aria-pressed="true">1年</button><button data-period="1095">3年</button><button data-period="custom">自定</button></div>
+        <div id="custom-dates" class="date-fields" hidden><label>开始<input id="start-date" type="date" min="1940-01-01"></label><label>结束<input id="end-date" type="date" min="1940-01-01"></label><button id="apply-dates">应用日期</button></div>
+        <div class="weather-status"><span id="weather-status" role="status">正在读取历史气象…</span><button id="refresh-weather" class="icon" title="重新读取气象数据" aria-label="重新读取气象数据"><i data-lucide="refresh-cw"></i></button></div>
+        <div hidden>
+          <input type="checkbox" data-channel="rain" checked>
+          <input type="checkbox" data-channel="wind" checked>
+          <input type="checkbox" data-channel="flood" checked>
+          <input type="checkbox" data-channel="sun" checked>
+          <input id="intensity" type="range" min="0" max="100" value="95"><output id="intensity-value">95%</output>
+        </div>
+      </section>
+      <section id="reflectivity-controls" class="transparency-options">
+        <h2><span class="mono">04</span> <span data-map-label="reflectivity-settings">Reflection settings</span></h2>
+        <label class="control-row" for="reflectivity-pattern"><span data-map-label="reflection-pattern">Pattern</span><select id="reflectivity-pattern"><option value="shards" data-map-label="reflection-shards">Shards</option><option value="crosshatch" data-map-label="reflection-crosshatch">Crosshatch</option><option value="grain" data-map-label="reflection-grain">Grain</option></select></label>
+        <label class="control-row" for="reflectivity-color"><span data-map-label="reflection-color">Ink color</span><input id="reflectivity-color" type="color" value="#455959"></label>
+        <label class="range-label" for="reflectivity-scale"><span data-map-label="reflection-scale">Mark size</span><output id="reflectivity-scale-value" for="reflectivity-scale">100%</output></label>
+        <input id="reflectivity-scale" type="range" min="60" max="160" step="1" value="100">
+        <label class="range-label" for="reflectivity-flow"><span data-map-label="reflection-flow">Directional flow</span><output id="reflectivity-flow-value" for="reflectivity-flow">65%</output></label>
+        <input id="reflectivity-flow" type="range" min="0" max="100" step="1" value="65">
+        <label class="range-label" for="reflectivity-glint"><span data-map-label="reflection-glint">Glint contrast</span><output id="reflectivity-glint-value" for="reflectivity-glint">65%</output></label>
+        <input id="reflectivity-glint" type="range" min="0" max="100" step="1" value="65">
+        <label class="range-label" for="reflectivity-scatter"><span data-map-label="reflection-scatter">Scatter</span><output id="reflectivity-scatter-value" for="reflectivity-scatter">35%</output></label>
+        <input id="reflectivity-scatter" type="range" min="0" max="100" step="1" value="35">
+      </section>
+      </div>
+      <div class="run-area"><button id="run" class="run"><span>RUN</span><i data-lucide="arrow-up-right"></i></button><div class="run-meta mono"><span id="seed-label">EDITION / 0000</span><span id="run-state">READY</span></div></div>
+      <footer class="sidebar-footer"><a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noreferrer">DATA / OPEN-METEO <i data-lucide="arrow-up-right"></i></a></footer>
+    </aside>
+    <main>
+      <div class="workspace">
+        <section class="view model-view">
+          <div class="view-heading"><h1><span class="mono">A</span> 模型视角</h1><div class="tools"><button class="icon" id="front" title="正视图" aria-label="正视图"><i data-lucide="square"></i></button><button class="icon" id="iso" title="轴测视图" aria-label="轴测视图"><i data-lucide="box"></i></button><button class="icon" id="fit" title="适配模型" aria-label="适配模型"><i data-lucide="maximize"></i></button></div></div>
+          <div class="stage" id="model-stage"><div id="viewport" tabindex="0" aria-label="三维模型，可拖动旋转" role="img"></div><span class="stage-corner mono">3D / ORBIT</span><span id="angle-label" class="angle mono">AZ 0° / EL 0°</span></div>
+          <div class="view-footer"><span id="geometry-info">内置建筑模型</span><span class="mono" id="camera-label">ORTHOGRAPHIC</span></div>
+        </section>
+        <section class="view print-view">
+          <div class="view-heading"><h2><span class="mono">B</span> Reflectivity Map</h2><span class="mono" id="print-mode">SURFACE / REFLECTION</span></div>
+          <div class="stage" id="print-stage"><canvas id="artwork" width="1500" height="2200" aria-label="气象点阵生成图"></canvas><span class="stage-corner mono" id="print-tag">YIWU / 001</span><div class="working" id="working" hidden>GENERATING<span>···</span></div></div>
+          <div class="view-footer"><span id="print-info" class="mono">1500 × 2200 PX</span><div class="export-tools"><select id="resolution" aria-label="导出分辨率"><option value="1500">1500px</option><option value="3000" selected>3000px</option><option value="4500">4500px</option></select><button id="png" title="下载 PNG"><i data-lucide="download"></i>PNG</button><button id="jpeg" title="下载 JPEG"><i data-lucide="download"></i>JPG</button></div></div>
+        </section>
+      </div>
+      <section class="climate-band" aria-label="历史气象概览">
+        <div class="climate-title"><h2>气象档案 <span class="mono">/ YIWU</span></h2><span id="date-label" class="mono">—</span></div>
+        <div class="transparency-ratios" title="Rain ≥ 1 mm; remaining days split at 60% sunshine.">
+          <div><span data-map-label="rainy">Rainy</span><strong id="rainy-ratio">—</strong></div>
+          <div><span data-map-label="cloudy">Cloudy</span><strong id="cloudy-ratio">—</strong></div>
+          <div><span data-map-label="sunny">Sunny</span><strong id="sunny-ratio">—</strong></div>
+        </div>
+        <div class="metrics" hidden>
+          <div><span class="metric-label"><i class="swatch rain"></i>累计降雨</span><strong id="rain-stat">—</strong><small>mm</small></div>
+          <div><span class="metric-label"><i class="swatch wind"></i>日最大风速均值</span><strong id="wind-stat">—</strong><small id="wind-unit">km/h</small></div>
+          <div><span class="metric-label"><i class="swatch flood"></i>积水潜势 · 推算</span><strong id="flood-stat">—</strong><small>/ 100</small></div>
+          <div><span class="metric-label"><i class="swatch sun"></i>晴天 · 日照占比≥60%</span><strong id="sun-stat">—</strong><small>天</small></div>
+        </div>
+        <div class="timeline"><canvas id="weather-chart" height="60" aria-label="每日降雨时间序列"></canvas><span class="mono">PRECIPITATION / DAILY</span></div>
+        <div class="data-credit"><span id="data-description">历史气象再分析数据</span><span id="data-age"></span></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" hidden></div>
 </body>
 </html>
