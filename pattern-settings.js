@@ -1,7 +1,7 @@
 export const DEFAULT_BASE_COLOR = '#C3D1D1';
 
 export const PATTERN_OPTIONS = Object.freeze({
-  rain: Object.freeze(['stitch', 'continuous', 'zigzag']),
+  rain: Object.freeze(['stitch', 'continuous', 'dashed']),
   wind: Object.freeze(['strokes', 'herringbone', 'blocks']),
   flood: Object.freeze(['connected', 'stepped', 'wave']),
   sun: Object.freeze(['squares', 'diamonds', 'dots'])
@@ -40,7 +40,8 @@ export function normalizePatterns(input = {}) {
   for (const [channel, fallback] of Object.entries(DEFAULT_PATTERNS)) {
     const candidate = input?.[channel] || {};
     const value = { ...fallback };
-    const pattern = channel === 'wind' && candidate.pattern === 'crosshatch' ? 'blocks' : candidate.pattern;
+    const pattern = channel === 'wind' && candidate.pattern === 'crosshatch' ? 'blocks'
+      : channel === 'rain' && candidate.pattern === 'zigzag' ? 'dashed' : candidate.pattern;
     value.pattern = PATTERN_OPTIONS[channel].includes(pattern) ? pattern : fallback.pattern;
     value.color = normalizeColor(candidate.color, fallback.color);
     for (const [field, range] of Object.entries(NUMERIC_FIELDS)) {

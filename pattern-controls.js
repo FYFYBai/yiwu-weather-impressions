@@ -18,7 +18,7 @@ const labels = {
   advanced: ['Fine adjustments', '\u7ec6\u8282\u8c03\u8282'],
   reset: ['Reset this element', '\u91cd\u7f6e\u5f53\u524d\u5143\u7d20'],
   stitch: ['Broken stitch', '\u65ad\u7eed\u7ec6\u9488'], continuous: ['Continuous', '\u8fde\u7eed\u7ebf'],
-  zigzag: ['Zigzag', '\u6298\u7ebf'], strokes: ['Short strokes', '\u77ed\u7ebf'],
+  dashed: ['Dashed', '\u865a\u7ebf'], zigzag: ['Dashed', '\u865a\u7ebf'], strokes: ['Short strokes', '\u77ed\u7ebf'],
   herringbone: ['Herringbone', '\u4eba\u5b57\u7eb9'], blocks: ['Color blocks', '\u8272\u5757'],
   crosshatch: ['Color blocks', '\u8272\u5757'],
   blockAmount: ['Amount', '\u6570\u91cf'], blockWidth: ['Block thickness', '\u8272\u5757\u539a\u5ea6'],
@@ -74,7 +74,7 @@ export function createPatternControls({ onChange = () => {} } = {}) {
         <div class="pattern-select-row"><label for="pattern-kind">${translated('pattern')}</label><select id="pattern-kind">${PATTERN_OPTIONS[active].map(pattern => `<option value="${pattern}"${pattern === config.pattern ? ' selected' : ''}>${translated(pattern)}</option>`).join('')}</select></div>
         <div class="pattern-color-row"><label for="pattern-color">${translated('color')}</label><div class="pattern-color-value"><output id="pattern-color-value" for="pattern-color">${config.color}</output><input id="pattern-color" type="color" value="${config.color}"></div></div>
         ${['amount', 'width', 'length'].map(slider).join('')}
-        <details class="pattern-advanced"${expanded ? ' open' : ''}><summary>${translated('advanced')}</summary><div>${['spacing', 'angle', 'variation', 'opacity', 'weave', 'fade'].filter(field=>config.pattern!=='blocks'||field!=='angle').map(slider).join('')}</div></details>
+        <details class="pattern-advanced"${expanded ? ' open' : ''}><summary>${translated('advanced')}</summary><div>${['spacing', 'angle', 'variation', 'opacity', 'weave', 'fade'].filter(field=>field!=='angle'||(config.pattern!=='blocks'&&active!=='rain')).map(slider).join('')}</div></details>
         <div class="pattern-actions"><button id="pattern-reset" class="icon" type="button" title="${translated('reset')}" aria-label="${translated('reset')}"><i data-lucide="rotate-ccw"></i></button></div>
       </div>`;
     syncColors();

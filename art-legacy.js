@@ -64,15 +64,11 @@ export function makePlate(capture, settings, weather, seed) {
         const reach=2/3+(1/3)*clamp(precipitation/45)*p.length/100;
         const length=(bottom-top)*reach;
         threads.push({channel,x:xf,top,bottom,length,width:weight});
-        const phase=random()*Math.PI*2,segment=step*(.6+p.spacing/100*.65);
-        const lean=Math.tan(p.angle*Math.PI/360)*step*2;
+        const segment=step*(.6+p.spacing/100*.65)*(1+(random()-.5)*jitter*.8);
         for(let y=top,i=0;y<top+length;y+=segment,i++) {
           const progress=(y-top)/Math.max(1,length);
-          const wave=t=>Math.sin(t/step*.7+phase)*step*.13*jitter;
-          let x1=xf+wave(y)+lean*progress,x2=xf+wave(y+segment)+lean*(progress+segment/length);
-          const end=Math.min(top+length,y+segment*(p.pattern==='continuous'?1:i%3===0?.16:.68));
-          if(p.pattern==='zigzag'){x1=xf+(i%2?1:-1)*step*.22+lean*progress;x2=xf-(i%2?1:-1)*step*.22+lean*progress;}
-          stroke(channel,x1,y,x2,end,weight,progress);
+          const end=Math.min(top+length,y+segment*(p.pattern==='continuous'?1:p.pattern==='dashed'?.58:i%3===0?.16:.68));
+          stroke(channel,xf,y,xf,end,weight,progress);
         }
       }
     } else if(channel==='wind') {
