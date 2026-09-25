@@ -14,14 +14,14 @@ export const NUMERIC_FIELDS = Object.freeze({
   spacing: Object.freeze({ min: 0, max: 100, step: 1 }),
   angle: Object.freeze({ min: -90, max: 90, step: 1 }),
   variation: Object.freeze({ min: 0, max: 100, step: 1 }),
-  opacity: Object.freeze({ min: 0, max: 100, step: 1 }),
+  opacity: Object.freeze({ min: 0, max: 90, step: 1 }),
   weave: Object.freeze({ min: 0, max: 100, step: 1 }),
   fade: Object.freeze({ min: 0, max: 100, step: 1 })
 });
 
 const defaults = (pattern, color, amount, width) => Object.freeze({
   pattern, color, amount, width, length: 80, spacing: 45, angle: 0,
-  variation: 35, opacity: 100, weave: 65, fade: 80
+  variation: 35, opacity: 75, weave: 65, fade: 80
 });
 
 export const DEFAULT_PATTERNS = Object.freeze({

@@ -78,6 +78,27 @@ export function makePlate(capture, settings, weather, seed) {
     } else if(channel==='wind') {
       const pool=days.filter(d=>d.wind>.5);
       if(!pool.length) continue;
+      if(p.pattern==='blocks') {
+        const d=pool[Math.floor(random()*pool.length)],speed=clamp(d.wind/45);
+        const direction=(d.direction||0)*Math.PI/180,az=(capture.angles?.azimuth||0)*Math.PI/180;
+        const flow=-Math.sin(direction)*Math.cos(az)-Math.cos(direction)*Math.sin(az);
+        const angle=Math.atan((.1+speed*.65)*flow)+p.angle*Math.PI/180+(random()-.5)*jitter*.65;
+        const inset=.05+p.spacing/100*.3;
+        let x,y;
+        for(let attempt=0;attempt<100;attempt++) {
+          x=minX+spanX*(inset+random()*(1-2*inset));
+          y=minY+spanY*(inset+random()*(1-2*inset));
+          if(inside(x,y))break;
+        }
+        if(!inside(x,y)) {const run=clipRuns[Math.floor(random()*clipRuns.length)];x=run[0]+run[2]/2;y=run[1]+.5;}
+        const length=spanX*(.3+.65*p.length/100)*(.65+.35*speed);
+        const weight=clamp(spanY*(.08+.16*speed)*(p.width/.9)*(.3+.7*p.amount/100),unit*2,spanY*.5);
+        const dx=length/2*Math.cos(angle),dy=length/2*Math.sin(angle);
+        raw.push({channel,shape:'block',x1:x-dx,y1:y-dy,x2:x+dx,y2:y+dy,width:weight,
+          color:p.color,stops:[0,.28,.65,1].map(offset=>({offset,color:gradient(p.color,flow<0?1-offset:offset,p.fade)})),
+          alpha:clamp(settings.intensity)*p.opacity/100});
+        continue;
+      }
       const stride=Math.max(step*.9,step*(.85+p.spacing/100)),phase=random()*Math.PI*2;
       for(let y=minY+step/2;y<maxY;y+=stride) for(let x=minX+step/2;x<maxX;x+=stride) {
         const band=(Math.sin(y/(step*4)+phase)+1)/2;
@@ -88,9 +109,8 @@ export function makePlate(capture, settings, weather, seed) {
         const weaveRow=Math.floor(y/stride);
         const slope=(p.pattern==='herringbone'?(weaveRow%2?1:-1):1)*(.10+speed*.65)*flow;
         const angle=Math.atan(slope)+p.angle*Math.PI/180+(random()-.5)*jitter*.65;
-        const block=p.pattern==='blocks';
-        const length=step*(.45+p.length/100*1.8)*(1+(random()-.5)*jitter*.55)*(block?1.8:1);
-        const weight=p.width*unit*(.6+speed*1.25)*(block?3:1);
+        const length=step*(.45+p.length/100*1.8)*(1+(random()-.5)*jitter*.55);
+        const weight=p.width*unit*(.6+speed*1.25);
         const progress=flow<0?(maxX-x)/Math.max(1,spanX):(x-minX)/Math.max(1,spanX);
         stroke(channel,x-length/2*Math.cos(angle),y-length/2*Math.sin(angle),x+length/2*Math.cos(angle),y+length/2*Math.sin(angle),weight,progress);
       }
@@ -140,8 +160,8 @@ export function makePlate(capture, settings, weather, seed) {
     }
   }
 
-  // Ownership at crossings alternates the threads over/under on a shared grid.
-  const owner=new Int32Array(width*height).fill(-1),ranks=new Float32Array(width*height).fill(-1);
+  // Thin marks replace base dots; translucent layers never punch holes in each other.
+  const occupied=new Uint8Array(width*height);
   const tile=Math.max(step*2.4,unit*8);
   const rankAt=(mark,x,y)=>{
     const channel=CHANNELS.indexOf(mark.channel),weave=patterns[mark.channel].weave/100;
@@ -169,20 +189,19 @@ export function makePlate(capture, settings, weather, seed) {
       }
     }
   }
-  raw.forEach((mark,index)=>visit(mark,(x,y)=>{
-    const k=y*width+x,rank=rankAt(mark,x,y);
-    if(rank>=ranks[k]){ranks[k]=rank;owner[k]=index;}
-  }));
+  for(const mark of raw)if(mark.shape!=='block')visit(mark,(x,y)=>{occupied[y*width+x]=1;});
   const marks=[];
   for(const mark of raw) {
-    if(mark.channel==='sun'){marks.push(mark);continue;}
+    const x=mark.channel==='sun'?mark.x:(mark.x1+mark.x2)/2;
+    const y=mark.channel==='sun'?mark.y:(mark.y1+mark.y2)/2;
+    mark.alpha*=.85+.15*rankAt(mark,x,y)/3;
+    if(mark.channel==='sun'||mark.shape==='block'){marks.push(mark);continue;}
     const length=Math.hypot(mark.x2-mark.x1,mark.y2-mark.y1),n=Math.max(1,Math.ceil(length/.4));
     let start=null,last=null;
     const flush=()=>{if(start&&last&&Math.hypot(last.x-start.x,last.y-start.y)>.015)marks.push({...mark,x1:start.x,y1:start.y,x2:last.x,y2:last.y});start=null;last=null;};
     for(let i=0;i<=n;i++) {
       const x=mark.x1+(mark.x2-mark.x1)*i/n,y=mark.y1+(mark.y2-mark.y1)*i/n;
-      const other=raw[owner[Math.round(y)*width+Math.round(x)]];
-      const visible=supported(x,y,mark.width/2+unit*.3)&&(!other||other.channel===mark.channel||rankAt(mark,x,y)>=rankAt(other,x,y));
+      const visible=supported(x,y,mark.width/2+unit*.3);
       if(visible){if(!start)start={x,y};last={x,y};}else flush();
     }
     flush();
@@ -204,12 +223,13 @@ export function makePlate(capture, settings, weather, seed) {
       let replaced=false;
       for(let oy=-radius;oy<=radius&&!replaced;oy+=Math.max(.7,radius))for(let ox=-radius;ox<=radius;ox+=Math.max(.7,radius)){
         const xx=Math.round(dx+ox),yy=Math.round(dy+oy);
-        if(xx>=0&&xx<width&&yy>=0&&yy<height&&owner[yy*width+xx]>=0){replaced=true;break;}
+        if(xx>=0&&xx<width&&yy>=0&&yy<height&&occupied[yy*width+xx]){replaced=true;break;}
       }
       if(!replaced)dots.push({x:dx,y:dy,radius,color:baseColor,alpha:frames.length>1?.58+.30*(1-layer/frames.length):1});
     }
   }
-  marks.sort((a,b)=>Number(b.channel==='sun')-Number(a.channel==='sun'));
+  const order=mark=>mark.shape==='block'?0:mark.channel==='sun'?1:2;
+  marks.sort((a,b)=>order(a)-order(b));
   return {width,height,dots,marks,threads,sunshine,clipRuns,seed,bounds:{minX,maxX,minY,maxY},weatherRange:weather?`${weather.start}/${weather.end}`:null,weatherSource:weather?.source||'none',mode:settings.mode,angles:capture.angles};
 }
 
@@ -237,7 +257,14 @@ export function drawPlate(canvas, plate, width=1500) {
       if(mark.shape==='dots')ctx.arc(mark.x,mark.y,mark.size/2,0,Math.PI*2);
       else {const c=Math.cos(mark.angle),s=Math.sin(mark.angle);[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([dx,dy],i)=>{const x=mark.x+(dx*c-dy*s)*mark.size/2,y=mark.y+(dx*s+dy*c)*mark.size/2;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.closePath();}
       ctx.fill();
-    }else{ctx.strokeStyle=mark.color;ctx.lineWidth=mark.width;ctx.beginPath();ctx.moveTo(mark.x1,mark.y1);ctx.lineTo(mark.x2,mark.y2);ctx.stroke();}
+    }else{
+      let ink=mark.color;
+      if(mark.shape==='block') {
+        ink=ctx.createLinearGradient(mark.x1,mark.y1,mark.x2,mark.y2);
+        for(const stop of mark.stops)ink.addColorStop(stop.offset,stop.color);
+      }
+      ctx.strokeStyle=ink;ctx.lineWidth=mark.width;ctx.beginPath();ctx.moveTo(mark.x1,mark.y1);ctx.lineTo(mark.x2,mark.y2);ctx.stroke();
+    }
   }
   ctx.restore();ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);
 }
@@ -259,12 +286,18 @@ export function serializePlateSvg(plate,width=1500) {
   const clip=silhouettePath(plate.clipRuns);
   out.push(`<defs><clipPath id="model-silhouette" clipPathUnits="userSpaceOnUse"><path d="${clip}"/></clipPath></defs>`,
     '<g clip-path="url(#model-silhouette)" stroke-linecap="butt" stroke-linejoin="miter">');
-  for(const mark of plate.marks){
+  for(const [index,mark] of plate.marks.entries()){
     const ink=`opacity="${n(mark.alpha)}"`;
+    let color=mark.color;
+    if(mark.shape==='block') {
+      const id=`weather-block-${index}`;
+      out.push(`<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${n(mark.x1)}" y1="${n(mark.y1)}" x2="${n(mark.x2)}" y2="${n(mark.y2)}">${mark.stops.map(stop=>`<stop offset="${n(stop.offset)}" stop-color="${attr(stop.color)}"/>`).join('')}</linearGradient></defs>`);
+      color=`url(#${id})`;
+    }
     if(mark.channel==='sun'){
       if(mark.shape==='dots')out.push(`<circle cx="${n(mark.x)}" cy="${n(mark.y)}" r="${n(mark.size/2)}" fill="${attr(mark.color)}" ${ink}/>`);
       else out.push(`<rect x="${n(mark.x-mark.size/2)}" y="${n(mark.y-mark.size/2)}" width="${n(mark.size)}" height="${n(mark.size)}" transform="rotate(${n(mark.angle*180/Math.PI)} ${n(mark.x)} ${n(mark.y)})" fill="${attr(mark.color)}" ${ink}/>`);
-    }else out.push(`<path data-channel="${attr(mark.channel)}" d="M${n(mark.x1)} ${n(mark.y1)}L${n(mark.x2)} ${n(mark.y2)}" fill="none" stroke="${attr(mark.color)}" stroke-width="${n(mark.width)}" ${ink}/>`);
+    }else out.push(`<path data-channel="${attr(mark.channel)}" d="M${n(mark.x1)} ${n(mark.y1)}L${n(mark.x2)} ${n(mark.y2)}" fill="none" stroke="${attr(color)}" stroke-width="${n(mark.width)}" ${ink}/>`);
   }
   out.push('</g></g></svg>');
   return out.join('');
