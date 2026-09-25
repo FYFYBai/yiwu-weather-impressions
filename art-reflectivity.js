@@ -2,7 +2,7 @@ import { makePlate as makeSurfacePlate, skyRatios } from './art-transparency.js'
 import { seeded } from './art-legacy.js';
 
 export { skyRatios };
-export const DEFAULT_REFLECTIVITY_COLOR='#455959';
+export const DEFAULT_REFLECTIVITY_COLOR='#303838';
 const clamp=(n,low=0,high=1)=>Math.max(low,Math.min(high,n));
 const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
 const control=(value,fallback,low=0,high=100)=>clamp(Number.isFinite(value)?value:fallback,low,high)/100;
@@ -19,45 +19,46 @@ export function makePlate(capture,settings,weather,seed){
   const scale=control(config.scale,100,60,160),flow=control(config.flow,65);
   const glint=control(config.glint,65),scatter=control(config.scatter,35);
   const pattern=['shards','crosshatch','grain'].includes(config.pattern)?config.pattern:'shards';
-  const density=clamp(Number.isFinite(settings.density)?settings.density:200,60,600),step=capture.width/density;
+  const density=clamp(Number.isFinite(settings.density)?settings.density:260,60,600),step=capture.width/density;
   // Reuse the established surface sampling, paper framing and silhouette mask.
   // Reflectivity is an artistic weather mapping, not a physical material estimate.
   const plate=makeSurfacePlate(capture,{...settings,density,mode:'surface',transparency:{color,scale:100,variation:0}},weather,seed);
   const {minX,maxX,minY,maxY}=plate.bounds,spanX=maxX-minX+1,spanY=maxY-minY+1;
   const pixels=capture.surface||capture.frames[0],random=seeded(seed),phase=random()*40;
   const ratios=plate.ratios,rain=ratios?.rainy||0,sun=ratios?.sunny||0,cloud=ratios?.cloudy||0;
-  const patch=Math.max(spanX*.22,spanY*.12,step*8);
+  const patch=Math.max(spanX*.16,spanY*.085,step*9);
   const wind=Number.isFinite(weather?.east)&&Number.isFinite(weather?.north)?Math.atan2(weather.east,weather.north):0;
-  const centers=Array.from({length:plate.dots.length?11+Math.round(sun*9):0},()=>{
-    const anchor=plate.dots[Math.floor(random()*plate.dots.length)];
-    return {x:anchor.x,y:anchor.y,rx:patch*(.20+random()*.42),ry:patch*(.28+random()*.56),strength:.75+random()*.25};
+  const fields=plate.dots.map(({x,y})=>{
+    const u=(x-minX)/patch+phase,v=(y-minY)/patch+phase*.43;
+    const warp=(noise(u*.65+7,v*.65-4,seed+13)-.5)*.5;
+    return .60*noise(u+warp,v-warp,seed)+.30*noise(u*1.9+3,v*1.9,seed+37)+.10*noise(u*3.7,v*3.7,seed+61);
   });
+  const mean=fields.reduce((sum,value)=>sum+value,0)/Math.max(1,fields.length);
+  const deviation=Math.max(.10,Math.sqrt(fields.reduce((sum,value)=>sum+(value-mean)**2,0)/Math.max(1,fields.length)));
   const contrast=control(settings.contrast===undefined?65:settings.contrast*100,65);
   const marks=[],dots=[],ghosts=[];
-  for(const sample of plate.dots){
+  for(const [index,sample] of plate.dots.entries()){
     const {x,y,sky}=sample,p=((capture.height-Math.round(y)-1)*capture.width+Math.round(x))*4;
     const nx=pixels[p]/127.5-1,ny=pixels[p+1]/127.5-1,nz=pixels[p+2]/127.5-1;
     const face=clamp(.55-nx*.32+ny*.25+nz*.22,.22,1);
     const u=(x-minX)/patch+phase,v=(y-minY)/patch+phase*.43;
-    const field=.72*noise(u,v,seed)+.28*noise(u*2.3,v*2.3,seed+37);
-    let glimmer=0;
-    for(const center of centers){
-      const dx=(x-center.x)/center.rx,dy=(y-center.y)/center.ry;
-      glimmer=Math.max(glimmer,Math.exp(-(dx*dx+dy*dy)*1.6)*center.strength);
-    }
-    const cloudVeil=.05+cloud*.15;
-    const texture=smooth((field-.20)/.57),spark=smooth((glimmer-.08)/.65);
-    const tone=clamp((cloudVeil+texture*.42+spark*(.38+glint*.64))*(.65+face*.45));
-    const orientation=noise(u*.64+8,v*.64-3,seed+19)*Math.PI*2;
-    const drift=noise(u*2.2,v*2.2,seed+91)-.5;
-    const angle=-.65+wind*.12+Math.sin(orientation)*flow*1.5+drift*(1-flow*.6)*2.8+(random()-.5)*scatter*(4.8-spark*3.5);
-    const jx=(random()-.5)*step*scatter*.24,jy=(random()-.5)*step*scatter*.24;
-    const length=step*clamp((.12+texture*.40+spark*.32+rain*.07)*scale,.08,.82);
-    const stroke=step*clamp((.048+tone*.10+spark*glint*.095)*scale,.025,.24);
-    const alpha=clamp(.25+tone*(.63+contrast*.2),.16,.98);
+    const field=(fields[index]-mean)/deviation;
+    const tone=clamp((1/(1+Math.exp(-field*(.90+glint*.50)))+cloud*.035)*(.82+face*.23));
+    const texture=smooth((tone-.12)/.67),spark=smooth((tone-(.66-sun*.04))/.26);
+    // Diffuse areas scatter short flecks; dark areas align into crisp, slanted
+    // hatch patches. Surface normals reverse the slant across building folds.
+    const direction=(nx<-.08?-.55:.55)+ny*.18+wind*.06;
+    const drift=(noise(u*1.4,v*1.4,seed+91)-.5)*.35;
+    const alignment=clamp(.10+flow*(.16+spark*1.3),0,.97);
+    const loose=(random()-.5)*Math.PI;
+    const angle=(direction+drift)*alignment+loose*(1-alignment)+(random()-.5)*scatter*.6;
+    const jx=(random()-.5)*step*scatter*.18,jy=(random()-.5)*step*scatter*.18;
+    const length=step*clamp((.065+texture*.60+spark*.105+rain*.035)*scale,.035,.80);
+    const stroke=step*clamp((.048+texture*.045+spark*(.085+glint*.11))*scale,.025,.24);
+    const alpha=clamp(.40+texture*.31+spark*(.20+contrast*.14),.16,.99);
     const mark={x:x+jx,y:y+jy,dx:Math.cos(angle)*length/2,dy:Math.sin(angle)*length/2,width:stroke,alpha,color,pattern,sky};
     marks.push(mark);
-    dots.push({x,y,radius:step*.043,color,alpha:.18,sky});
+    dots.push({x,y,radius:step*.07,color,alpha:.42,sky});
     if(settings.mode==='layers'&&capture.frames.length>1)capture.frames.forEach((frame,index)=>{
       if(frame[p+3]<100)return;
       const offset=(index/(capture.frames.length-1)-.5)*step*.65;
@@ -78,7 +79,7 @@ export function drawPlate(canvas,plate,width=1500){
   const ink=layer?layer.getContext('2d'):ctx;
   ink.setTransform(scale*plate.paper.scale,0,0,scale*plate.paper.scale,scale*plate.paper.x,scale*plate.paper.y);
   if(!layer){ink.save();ink.beginPath();for(const run of plate.clipRuns)ink.rect(...run);ink.clip();}
-  ink.fillStyle=plate.color;ink.globalAlpha=.18;ink.beginPath();
+  ink.fillStyle=plate.color;ink.globalAlpha=.42;ink.beginPath();
   for(const dot of plate.dots){ink.moveTo(dot.x+dot.radius,dot.y);ink.arc(dot.x,dot.y,dot.radius,0,Math.PI*2);}
   ink.fill();ink.lineCap='round';
   // Quantized ink batches keep large exports fast; clip the finished ink only once.

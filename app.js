@@ -13,8 +13,8 @@ if (legacy) {
   $('density-value').value='170';
 }
 if (mapKind === 'reflectivity') {
-  Object.assign($('density'), { min:'90', max:'360', step:'10', value:'200' });
-  $('density-value').value='200';
+  Object.assign($('density'), { min:'90', max:'360', step:'10', value:'260' });
+  $('density-value').value='260';
 }
 let viewport, weather = null, plate = null, mode = 'surface', edition = 0, busy = false, loadingModel = false;
 const imageViewer=createArtworkViewer({canvas:$('artwork'),title:{color:'Color Map',transparency:'Transparency Map',reflectivity:'Reflectivity Map'}[mapKind]});
