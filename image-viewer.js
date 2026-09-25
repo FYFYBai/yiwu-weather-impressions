@@ -5,12 +5,12 @@ export function zoomAroundPoint({zoom,x,y},next,px=0,py=0){
   return {zoom:next,x:px-(px-x)*ratio,y:py-(py-y)*ratio};
 }
 
-export function createArtworkViewer({canvas,title}) {
+export function createArtworkViewer({canvas,title,trigger=canvas,vectorSource=null}) {
   const button=document.createElement('button');
   button.id='expand-artwork';button.className='icon artwork-expand';button.disabled=true;
   button.innerHTML='<i data-lucide="expand"></i>';
   canvas.parentElement.append(button);
-  canvas.tabIndex=0;canvas.setAttribute('role','button');canvas.setAttribute('aria-haspopup','dialog');
+  trigger.tabIndex=0;trigger.setAttribute('role','button');trigger.setAttribute('aria-haspopup','dialog');
   const dialog=document.createElement('dialog');
   dialog.className='artwork-dialog';dialog.setAttribute('aria-labelledby','artwork-viewer-title');
   dialog.innerHTML=`<div class="artwork-viewer-toolbar">
@@ -22,10 +22,10 @@ export function createArtworkViewer({canvas,title}) {
       <button class="icon" data-viewer="fit"><i data-lucide="maximize"></i></button>
       <button class="icon" data-viewer="close" autofocus><i data-lucide="x"></i></button>
     </div>
-  </div><div class="artwork-viewer-stage"><canvas id="artwork-detail" role="img"></canvas></div>`;
+  </div><div class="artwork-viewer-stage">${vectorSource?'<img id="artwork-detail" draggable="false" alt="">':'<canvas id="artwork-detail" role="img"></canvas>'}</div>`;
   document.body.append(dialog);
   dialog.querySelector('h2').textContent=title;
-  const stage=dialog.querySelector('.artwork-viewer-stage'),detail=dialog.querySelector('canvas');
+  const stage=dialog.querySelector('.artwork-viewer-stage'),detail=dialog.querySelector('#artwork-detail');
   const action=name=>dialog.querySelector(`[data-viewer="${name}"]`);
   let available=false,zoom=1,fitScale=1,x=0,y=0,returnFocus;
   const pointers=new Map();let gesture=null;
@@ -33,7 +33,7 @@ export function createArtworkViewer({canvas,title}) {
   function labels(){
     const zh=document.documentElement.lang.startsWith('zh');
     const open=zh?'放大查看图片':'Enlarge print';
-    button.title=open;button.setAttribute('aria-label',open);canvas.title=open;canvas.setAttribute('aria-label',open);
+    button.title=open;button.setAttribute('aria-label',open);trigger.title=open;trigger.setAttribute('aria-label',open);
     for(const [key,en,cn] of [['out','Zoom out','缩小'],['in','Zoom in','放大'],['fit','Fit image','适配图片'],['close','Close preview','关闭预览']]){
       action(key).title=zh?cn:en;action(key).setAttribute('aria-label',zh?cn:en);
     }
@@ -42,7 +42,7 @@ export function createArtworkViewer({canvas,title}) {
   labels();document.addEventListener('studio-language-change',labels);
 
   function paint(){
-    const w=detail.width*fitScale*zoom,h=detail.height*fitScale*zoom;
+    const w=canvas.width*fitScale*zoom,h=canvas.height*fitScale*zoom;
     const limitX=Math.max(0,(w-stage.clientWidth)/2+24),limitY=Math.max(0,(h-stage.clientHeight)/2+24);
     x=clamp(x,-limitX,limitX);y=clamp(y,-limitY,limitY);
     detail.style.width=`${w}px`;detail.style.height=`${h}px`;
@@ -53,7 +53,7 @@ export function createArtworkViewer({canvas,title}) {
   }
   function fit(){
     if(!dialog.open)return;
-    fitScale=Math.max(.01,Math.min((stage.clientWidth-32)/detail.width,(stage.clientHeight-32)/detail.height));
+    fitScale=Math.max(.01,Math.min((stage.clientWidth-32)/canvas.width,(stage.clientHeight-32)/canvas.height));
     zoom=1;x=0;y=0;paint();
   }
   function zoomTo(next,px=0,py=0){
@@ -62,8 +62,10 @@ export function createArtworkViewer({canvas,title}) {
   function location(event){const rect=stage.getBoundingClientRect();return {x:event.clientX-rect.left-stage.clientWidth/2,y:event.clientY-rect.top-stage.clientHeight/2};}
   function refresh(){
     if(!dialog.open)return;
-    const resized=detail.width!==canvas.width||detail.height!==canvas.height;
-    detail.width=canvas.width;detail.height=canvas.height;detail.getContext('2d').drawImage(canvas,0,0);
+    const resized=Number(detail.getAttribute('width'))!==canvas.width||Number(detail.getAttribute('height'))!==canvas.height;
+    detail.setAttribute('width',canvas.width);detail.setAttribute('height',canvas.height);
+    if(vectorSource)detail.src=vectorSource();
+    else detail.getContext('2d').drawImage(canvas,0,0);
     if(resized)fit();else paint();
   }
   function open(){
@@ -71,8 +73,8 @@ export function createArtworkViewer({canvas,title}) {
     returnFocus=document.activeElement;dialog.showModal();document.body.classList.add('artwork-viewer-open');
     refresh();fit();
   }
-  button.onclick=open;canvas.addEventListener('click',open);
-  canvas.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}});
+  button.onclick=open;trigger.addEventListener('click',open);
+  trigger.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}});
   action('in').onclick=()=>zoomTo(zoom*1.4);action('out').onclick=()=>zoomTo(zoom/1.4);
   action('fit').onclick=fit;action('close').onclick=()=>dialog.close();
   dialog.addEventListener('close',()=>{pointers.clear();gesture=null;stage.classList.remove('is-dragging');document.body.classList.remove('artwork-viewer-open');returnFocus?.focus({preventScroll:true});});
@@ -103,5 +105,5 @@ export function createArtworkViewer({canvas,title}) {
   const release=event=>{pointers.delete(event.pointerId);resetGesture();if(!pointers.size)stage.classList.remove('is-dragging');};
   for(const event of ['pointerup','pointercancel','lostpointercapture'])stage.addEventListener(event,release);
   new ResizeObserver(fit).observe(stage);
-  return {refresh,setAvailable(value){available=value;button.disabled=!value;canvas.setAttribute('aria-disabled',String(!value));}};
+  return {refresh,setAvailable(value){available=value;button.disabled=!value;trigger.setAttribute('aria-disabled',String(!value));}};
 }

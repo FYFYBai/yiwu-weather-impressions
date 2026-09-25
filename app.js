@@ -5,7 +5,7 @@ import { createArtworkViewer } from './image-viewer.js';
 
 const mapKind = ['transparency','reflectivity'].includes(document.body.dataset.map) ? document.body.dataset.map : 'color';
 const legacy = mapKind === 'color';
-const { makePlate, drawPlate, skyRatios } = await import({color:'./art-legacy.js',transparency:'./art-transparency.js',reflectivity:'./art-reflectivity.js'}[mapKind]);
+const { makePlate, drawPlate, skyRatios, serializePlateSvg } = await import({color:'./art-legacy.js',transparency:'./art-transparency.js',reflectivity:'./art-reflectivity.js'}[mapKind]);
 const $ = id => document.getElementById(id);
 initializeLanguage();
 if (legacy) {
@@ -17,7 +17,18 @@ if (mapKind === 'reflectivity') {
   $('density-value').value='260';
 }
 let viewport, weather = null, plate = null, mode = 'surface', edition = 0, busy = false, loadingModel = false;
-const imageViewer=createArtworkViewer({canvas:$('artwork'),title:{color:'Color Map',transparency:'Transparency Map',reflectivity:'Reflectivity Map'}[mapKind]});
+let vectorUrl=null;
+const vectorPreview=legacy?document.createElement('img'):null;
+if(vectorPreview){
+  vectorPreview.id='artwork-vector';vectorPreview.alt='Color Map';vectorPreview.draggable=false;
+  $('artwork').hidden=true;$('artwork').after(vectorPreview);
+}
+const svgButton=document.createElement('button');svgButton.id='svg';svgButton.disabled=true;
+svgButton.innerHTML='<i data-lucide="download"></i>SVG';
+$('png').before(svgButton);svgButton.onclick=()=>download('svg');
+function svgLabel(){svgButton.title=document.documentElement.lang.startsWith('zh')?'下载 SVG':'Download SVG';}
+svgLabel();document.addEventListener('studio-language-change',svgLabel);
+const imageViewer=createArtworkViewer({canvas:$('artwork'),trigger:vectorPreview||$('artwork'),vectorSource:legacy?()=>vectorUrl:null,title:{color:'Color Map',transparency:'Transparency Map',reflectivity:'Reflectivity Map'}[mapKind]});
 let requested = rangeFor(365), weatherAbort, toastTimer, weatherSequence = 0, revision = 0;
 const patternControls = legacy ? (await import('./pattern-controls.js')).createPatternControls({ onChange:dirty }) : null;
 function toast(message) { setText('toast',message); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500); }
@@ -37,6 +48,7 @@ mapLabels();document.addEventListener('studio-language-change',mapLabels);
 function updateInfo(info) { $('geometry-info').textContent = `${info.meshes.toLocaleString()} meshes / ${info.triangles.toLocaleString()} faces`; }
 function busyState(value) {
   busy = value; $('run').disabled = value || loadingModel; $('png').disabled = value || !plate; $('jpeg').disabled = value || !plate;
+  if($('svg'))$('svg').disabled=value||!plate;
   $('working').hidden = !value;
   imageViewer.setAvailable(!value&&!!plate);
   if (viewport) viewport.controls.enabled = !value && !loadingModel;
@@ -51,6 +63,13 @@ async function run({ initial = false } = {}) {
     const seed = crypto.getRandomValues(new Uint32Array(1))[0];
     plate = makePlate(capture, config, weather, seed);
     drawPlate($('artwork'), plate);
+    if(vectorPreview){
+      const previous=vectorUrl;
+      vectorUrl=URL.createObjectURL(new Blob([serializePlateSvg(plate)],{type:'image/svg+xml'}));
+      vectorPreview.src=vectorUrl;
+      await vectorPreview.decode();
+      if(previous)URL.revokeObjectURL(previous);
+    }
     imageViewer.refresh();
     edition++;
     $('seed-label').textContent = `EDITION / ${String(edition).padStart(4,'0')}`;
@@ -160,16 +179,24 @@ async function restoreDefaultModel() {
 async function download(type) {
   if (!plate || busy) return;
   const exportPlate = plate;
-  const canvas = document.createElement('canvas'); drawPlate(canvas,exportPlate,+$('resolution').value);
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/' + type, .96));
+  const width=+$('resolution').value;
+  const paper=exportPlate.paper||exportPlate;
+  let height=Math.round(width*paper.height/paper.width);
+  let blob;
+  if(type==='svg'&&serializePlateSvg)blob=new Blob([serializePlateSvg(exportPlate,width)],{type:'image/svg+xml'});
+  else {
+    const canvas=document.createElement('canvas');drawPlate(canvas,exportPlate,width);
+    height=canvas.height;
+    blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/'+type,.96));
+  }
   if (!blob) { toast('导出失败，请降低分辨率后重试。'); return; }
   const url = URL.createObjectURL(blob), link = document.createElement('a');
-  link.href = url; link.download = `yiwu-${mapKind}-${exportPlate.mode}-${exportPlate.seed}.${type === 'jpeg' ? 'jpg' : 'png'}`;
+  link.href = url; link.download = `yiwu-${mapKind}-${exportPlate.mode}-${exportPlate.seed}.${type === 'jpeg' ? 'jpg' : type}`;
   document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url),60000);
-  setText('toast',() => `${t('已生成下载文件')} / ${type.toUpperCase()} / ${canvas.width} × ${canvas.height} PX`);
+  setText('toast',() => `${t('已生成下载文件')} / ${type.toUpperCase()} / ${width} × ${height}${type==='svg'?'':' PX'}`);
   $('toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('toast').hidden=true,5000);
   $('print-info').dataset.exportType=blob.type; $('print-info').dataset.exportBytes=String(blob.size);
-  $('print-info').dataset.exportDimensions=`${canvas.width}x${canvas.height}`;
+  $('print-info').dataset.exportDimensions=`${width}x${height}`;
 }
 
 function registerTools() {

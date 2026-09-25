@@ -1,4 +1,5 @@
 body[data-map]{--map-header-height:76px}
+#artwork-vector{width:100%;height:100%;object-fit:contain;display:block;cursor:zoom-in}
 .artwork-expand{position:absolute;right:10px;top:10px;width:34px;height:34px;background:#fffffff0;border:1px solid #d5d7d2;z-index:2}
 #artwork[aria-disabled=false]{cursor:zoom-in}
 .artwork-dialog{position:fixed;inset:0;margin:auto;width:calc(100vw - 48px);height:calc(100dvh - 48px);max-width:1800px;max-height:none;padding:0;border:1px solid #b7bdbb;background:#eef1f0;color:#202220;overflow:hidden}

@@ -1,4 +1,5 @@
 import { seeded } from './art-legacy.js';
+import { svgNumber as n, svgAttribute as attr, circlePath, startPaperSvg } from './svg-utils.js';
 
 const clamp=(n,min=0,max=1)=>Math.max(min,Math.min(max,n));
 export const DEFAULT_TRANSPARENCY_COLOR='#829B9B';
@@ -142,4 +143,16 @@ export function drawPlate(canvas,plate,width=1500) {
     ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(layerCanvas,0,0);
   }else ctx.restore();
   ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);
+}
+
+export function serializePlateSvg(plate,width=1500){
+  const out=startPaperSvg(plate,width,'Yiwu Transparency Map');
+  for(const layer of [plate.ghosts,plate.dots]){
+    const batches=new Map();
+    for(const dot of layer){const key=Math.round(dot.alpha*64);if(!batches.has(key))batches.set(key,[]);batches.get(key).push(dot);}
+    for(const [alpha,dots] of batches){
+      out.push(`<path fill="${attr(dots[0].color)}" opacity="${n(alpha/64)}" d="${dots.map(dot=>circlePath(dot.x,dot.y,dot.radius)).join('')}"/>`);
+    }
+  }
+  return out.join('')+'</g></g></svg>';
 }

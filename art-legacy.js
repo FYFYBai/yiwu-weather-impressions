@@ -1,4 +1,5 @@
 import { normalizePatterns, DEFAULT_BASE_COLOR } from './pattern-settings.js';
+import { svgNumber as n, svgAttribute as attr, circlePath as circle, silhouettePath } from './svg-utils.js';
 
 const clamp = (n, min = 0, max = 1) => Math.max(min, Math.min(max, n));
 export const PALETTE = { rain: [97,147,148], wind: [208,224,177], flood: [253,173,164], sun: [232,184,108] };
@@ -224,11 +225,11 @@ export function drawPlate(canvas, plate, width=1500) {
   const modelScale=scale*(1-2*margin);
   ctx.setTransform(modelScale,0,0,modelScale,canvas.width*margin,canvas.height*margin);
   for(const dot of plate.dots){ctx.globalAlpha=dot.alpha;ctx.fillStyle=dot.color;ctx.beginPath();ctx.arc(dot.x,dot.y,dot.radius,0,Math.PI*2);ctx.fill();}
-  // Clip the entire stroke footprint, including round caps on diagonal facades.
+  // Clip the entire stroke footprint at diagonal facades.
   ctx.save();ctx.beginPath();
   for(const run of plate.clipRuns)ctx.rect(...run);
   ctx.clip();
-  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.lineCap='butt';ctx.lineJoin='miter';
   for(const mark of plate.marks){
     ctx.globalAlpha=mark.alpha;
     if(mark.channel==='sun'){
@@ -239,4 +240,32 @@ export function drawPlate(canvas, plate, width=1500) {
     }else{ctx.strokeStyle=mark.color;ctx.lineWidth=mark.width;ctx.beginPath();ctx.moveTo(mark.x1,mark.y1);ctx.lineTo(mark.x2,mark.y2);ctx.stroke();}
   }
   ctx.restore();ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);
+}
+
+export function serializePlateSvg(plate,width=1500) {
+  const height=Math.round(width*plate.height/plate.width);
+  const out=[`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${plate.width} ${plate.height}">`,
+    '<title>Yiwu Color Map</title><rect width="100%" height="100%" fill="#fff"/>'];
+  for(let y=5.5;y<plate.height-5.5;y+=5.5){
+    const tone=Math.round(244-10*Math.pow(y/plate.height,2));
+    let path='';for(let x=5.5;x<plate.width-5.5;x+=5.5)path+=circle(x,y,.53);
+    out.push(`<path fill="rgb(${tone},${tone},${tone})" d="${path}"/>`);
+  }
+  out.push(`<g transform="translate(${n(plate.width*.105)} ${n(plate.height*.105)}) scale(.79)">`);
+  // Batch equal inks without turning any dots or straight strokes into images.
+  const dots=new Map();
+  for(const dot of plate.dots){const key=JSON.stringify([dot.color,dot.alpha]);dots.set(key,(dots.get(key)||'')+circle(dot.x,dot.y,dot.radius));}
+  for(const [key,path] of dots){const [color,alpha]=JSON.parse(key);out.push(`<path fill="${attr(color)}" opacity="${n(alpha)}" d="${path}"/>`);}
+  const clip=silhouettePath(plate.clipRuns);
+  out.push(`<defs><clipPath id="model-silhouette" clipPathUnits="userSpaceOnUse"><path d="${clip}"/></clipPath></defs>`,
+    '<g clip-path="url(#model-silhouette)" stroke-linecap="butt" stroke-linejoin="miter">');
+  for(const mark of plate.marks){
+    const ink=`opacity="${n(mark.alpha)}"`;
+    if(mark.channel==='sun'){
+      if(mark.shape==='dots')out.push(`<circle cx="${n(mark.x)}" cy="${n(mark.y)}" r="${n(mark.size/2)}" fill="${attr(mark.color)}" ${ink}/>`);
+      else out.push(`<rect x="${n(mark.x-mark.size/2)}" y="${n(mark.y-mark.size/2)}" width="${n(mark.size)}" height="${n(mark.size)}" transform="rotate(${n(mark.angle*180/Math.PI)} ${n(mark.x)} ${n(mark.y)})" fill="${attr(mark.color)}" ${ink}/>`);
+    }else out.push(`<path data-channel="${attr(mark.channel)}" d="M${n(mark.x1)} ${n(mark.y1)}L${n(mark.x2)} ${n(mark.y2)}" fill="none" stroke="${attr(mark.color)}" stroke-width="${n(mark.width)}" ${ink}/>`);
+  }
+  out.push('</g></g></svg>');
+  return out.join('');
 }

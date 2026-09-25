@@ -1,5 +1,6 @@
 import { makePlate as makeSurfacePlate, skyRatios } from './art-transparency.js';
 import { seeded } from './art-legacy.js';
+import { svgNumber as n, svgAttribute as attr, circlePath, startPaperSvg } from './svg-utils.js';
 
 export { skyRatios };
 export const DEFAULT_REFLECTIVITY_COLOR='#303838';
@@ -110,4 +111,32 @@ export function drawPlate(canvas,plate,width=1500){
     ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.drawImage(layer,0,0);
   }else ctx.restore();
   ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);
+}
+
+export function serializePlateSvg(plate,width=1500){
+  const out=startPaperSvg(plate,width,'Yiwu Reflectivity Map');
+  out.push(`<path fill="${attr(plate.color)}" opacity=".42" d="${plate.dots.map(dot=>circlePath(dot.x,dot.y,dot.radius)).join('')}"/>`);
+  // Match the preview's ink quantization and compositing order exactly.
+  for(const marks of [plate.ghosts,plate.marks]){
+    const batches=new Map();
+    for(const mark of marks){
+      const key=`${Math.round(mark.alpha*48)}:${Math.round(mark.width*32)}`;
+      if(!batches.has(key))batches.set(key,[]);batches.get(key).push(mark);
+    }
+    for(const [key,batch] of batches){
+      const [alpha,lineWidth]=key.split(':').map(Number);
+      let path='';
+      for(const mark of batch){
+        const {x,y,dx,dy}=mark;
+        if(plate.pattern==='grain')path+=circlePath(x,y,Math.max(mark.width*.6,Math.hypot(dx,dy)*.42));
+        else {
+          path+=`M${n(x-dx)} ${n(y-dy)}L${n(x+dx)} ${n(y+dy)}`;
+          if(plate.pattern==='crosshatch')path+=`M${n(x+dy*.65)} ${n(y-dx*.65)}L${n(x-dy*.65)} ${n(y+dx*.65)}`;
+        }
+      }
+      const ink=plate.pattern==='grain'?`fill="${attr(plate.color)}"`:`fill="none" stroke="${attr(plate.color)}" stroke-width="${n(Math.max(1/32,lineWidth/32))}" stroke-linecap="round"`;
+      out.push(`<path ${ink} opacity="${n(alpha/48)}" d="${path}"/>`);
+    }
+  }
+  return out.join('')+'</g></g></svg>';
 }
