@@ -36,15 +36,30 @@ export function makePlate(capture,settings,weather,seed){
   });
   const mean=fields.reduce((sum,value)=>sum+value,0)/Math.max(1,fields.length);
   const deviation=Math.max(.10,Math.sqrt(fields.reduce((sum,value)=>sum+(value-mean)**2,0)/Math.max(1,fields.length)));
+  const faces=plate.dots.map(({x,y})=>{
+    const p=((capture.height-Math.round(y)-1)*capture.width+Math.round(x))*4;
+    return clamp(.55-(pixels[p]/127.5-1)*.32+(pixels[p+1]/127.5-1)*.25+(pixels[p+2]/127.5-1)*.22,.22,1);
+  });
+  const faceMean=faces.reduce((sum,value)=>sum+value,0)/Math.max(1,faces.length);
+  const exposure=fields.map((value,index)=>(value-mean)/deviation*(.90+glint*.50)+(faces[index]-.6)*.55);
+  const target=.60+rain*.022+cloud*.018+(faceMean-.6)*.04;
+  const response=(value,bias)=>1/(1+Math.exp(-value-bias));
+  // Normalize continuous exposure, not discrete tone bands: rerolls keep a
+  // consistent darker coverage while local light pockets and folds survive.
+  let low=-6,high=6;
+  for(let i=0;i<24;i++){
+    const bias=(low+high)/2;
+    const average=exposure.reduce((sum,value)=>sum+response(value,bias),0)/Math.max(1,exposure.length);
+    if(average<target)low=bias;else high=bias;
+  }
+  const bias=(low+high)/2;
   const contrast=control(settings.contrast===undefined?65:settings.contrast*100,65);
   const marks=[],dots=[],ghosts=[];
   for(const [index,sample] of plate.dots.entries()){
     const {x,y,sky}=sample,p=((capture.height-Math.round(y)-1)*capture.width+Math.round(x))*4;
-    const nx=pixels[p]/127.5-1,ny=pixels[p+1]/127.5-1,nz=pixels[p+2]/127.5-1;
-    const face=clamp(.55-nx*.32+ny*.25+nz*.22,.22,1);
+    const nx=pixels[p]/127.5-1,ny=pixels[p+1]/127.5-1;
     const u=(x-minX)/patch+phase,v=(y-minY)/patch+phase*.43;
-    const field=(fields[index]-mean)/deviation;
-    const tone=clamp((1/(1+Math.exp(-field*(.90+glint*.50)))+cloud*.035)*(.82+face*.23));
+    const tone=response(exposure[index],bias);
     const texture=smooth((tone-.12)/.67),spark=smooth((tone-(.66-sun*.04))/.26);
     // Diffuse areas scatter short flecks; dark areas align into crisp, slanted
     // hatch patches. Surface normals reverse the slant across building folds.
