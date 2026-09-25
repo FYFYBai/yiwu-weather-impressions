@@ -35,7 +35,7 @@ export function makePlate(capture,settings,weather,seed) {
     mask[y*width+x]=1;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
   }
   if(maxX<minX)throw new Error('当前视角没有可见模型，请点击适配模型后重试。');
-  const spanX=maxX-minX+1,spanY=maxY-minY+1,patch=Math.max(spanX*.42,spanY*.26,step*10);
+  const spanX=maxX-minX+1,spanY=maxY-minY+1,patch=Math.max(spanX*.34,spanY*.20,step*10);
   const samples=[];
   for(let yf=step/2;yf<height;yf+=step)for(let xf=step/2;xf<width;xf+=step){
     const x=Math.round(xf),y=Math.round(yf);
@@ -45,8 +45,8 @@ export function makePlate(capture,settings,weather,seed) {
     const light=clamp(nx*-.48+ny*.61+nz*.63);
     const dx=xf-minX,dy=yf-minY;
     const u=(dx*.94+dy*.34)/patch+phaseX,v=(-dx*.34+dy*.94)/patch+phaseY;
-    // Broad, gently rotated fields avoid the small curls of layered high-frequency noise.
-    const field=.88*noise(u,v,seed)+.12*noise(u*.5,v*.5,seed+33);
+    // Broad curves remain dominant, with a restrained second scale for local variation.
+    const field=.78*noise(u,v,seed)+.14*noise(u*1.65,v*1.65,seed+17)+.08*noise(u*.5,v*.5,seed+33);
     samples.push({x:xf,y:yf,light,field,pixel:p});
   }
   // Quantile allocation gives the three spatial fields the actual day ratios,
